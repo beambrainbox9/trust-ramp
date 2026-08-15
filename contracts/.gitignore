@@ -1,0 +1,9 @@
+node_modules/
+.env
+cache/
+artifacts/
+typechain-types/
+
+# Deployment records are NOT ignored — deployments/*.json contains only public
+# addresses and is meant to be committed so the app and the team share one
+# source of truth for what is deployed where.

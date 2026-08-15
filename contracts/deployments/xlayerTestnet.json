@@ -1,0 +1,40 @@
+{
+  "network": "X Layer Testnet",
+  "chainId": 1952,
+  "deployedAt": "2026-08-11T20:32:57.104Z",
+  "deployer": "0xDB53d8Fa7d6C4D69b459A952c6De9083853f5782",
+  "contracts": {
+    "TrustRampReputation": "0x1C51dec8a42e425f79C4584bDbf00A5958b87F7d",
+    "MockRWAYieldToken": "0x4BF84298151514512cB008B48f439d71DB1Cd6c4",
+    "MockUSDC": "0xa9B8b8Aba1Fc34c790Ec9D7D452d65E4b0A3A9E5",
+    "MockRWASale": "0x6466218A596e7FCB933ED5a02Fe5204dDa46435e",
+    "ScoreConsumerExample": "0x4d9088b1F5e6bdc9615338c89D2647b4AcBFffb5"
+  },
+  "faucetEnabled": true,
+  "sale": {
+    "paymentToken": "0xa9B8b8Aba1Fc34c790Ec9D7D452d65E4b0A3A9E5",
+    "paymentSymbol": "DEMO-USDC",
+    "paymentDecimals": 6,
+    "pricePerTokenUnits": "2000000",
+    "pricePerTokenDisplay": "2.0 DEMO-USDC",
+    "seededTokens": "10000.0",
+    "buySignature": "buy(uint256 tokenAmount, uint256 maxPaymentIn)",
+    "requiresApproval": true
+  },
+  "explorer": {
+    "TrustRampReputation": "https://www.okx.com/web3/explorer/xlayer-test/address/0x1C51dec8a42e425f79C4584bDbf00A5958b87F7d",
+    "MockRWAYieldToken": "https://www.okx.com/web3/explorer/xlayer-test/address/0x4BF84298151514512cB008B48f439d71DB1Cd6c4",
+    "MockUSDC": "https://www.okx.com/web3/explorer/xlayer-test/address/0xa9B8b8Aba1Fc34c790Ec9D7D452d65E4b0A3A9E5",
+    "MockRWASale": "https://www.okx.com/web3/explorer/xlayer-test/address/0x6466218A596e7FCB933ED5a02Fe5204dDa46435e",
+    "ScoreConsumerExample": "https://www.okx.com/web3/explorer/xlayer-test/address/0x4d9088b1F5e6bdc9615338c89D2647b4AcBFffb5"
+  },
+  "compiler": {
+    "version": "0.8.20",
+    "evmVersion": "paris",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    }
+  },
+  "consumerDeployedAt": "2026-08-14T16:31:27.108Z"
+}

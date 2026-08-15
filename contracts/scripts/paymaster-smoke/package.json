@@ -1,0 +1,16 @@
+{
+  "name": "trustramp-paymaster-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone, throwaway smoke test: does the Alchemy Gas Manager policy actually sponsor a UserOperation on X Layer testnet? Isolated from the contracts workspace on purpose — permissionless requires ox ^0.8.0 while hardhat's tree resolves ox 0.14.33, and forcing that resolution risked the 106-test suite.",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "permissionless": "0.2.57",
+    "viem": "2.55.11",
+    "ox": "0.8.9",
+    "dotenv": "16.4.5"
+  }
+}

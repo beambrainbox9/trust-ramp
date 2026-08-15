@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-ink text-paper font-body antialiased;
+}
+
+/* Tutor markdown. Tailwind's preflight strips list markers and heading sizes,
+   so without these the renderer produces semantically correct but visually flat
+   output — bullets with no bullet, headings that look like body text. Kept
+   deliberately small: the tutor writes prose, not documents. */
+.markdown-body > * + * {
+  @apply mt-3;
+}
+.markdown-body strong {
+  @apply font-semibold text-paper;
+}
+.markdown-body em {
+  @apply italic;
+}
+.markdown-body ul {
+  @apply list-disc pl-5 space-y-1;
+}
+.markdown-body ol {
+  @apply list-decimal pl-5 space-y-1;
+}
+.markdown-body li > p {
+  @apply inline;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  @apply font-semibold text-paper text-sm;
+}
+.markdown-body code {
+  @apply font-data text-xs bg-surfaceRaised px-1 py-0.5 rounded;
+}
+.markdown-body pre {
+  @apply font-data text-xs bg-surfaceRaised p-3 rounded overflow-x-auto;
+}
+.markdown-body pre code {
+  @apply bg-transparent p-0;
+}
+.markdown-body a {
+  @apply text-guide underline;
+}
+.markdown-body blockquote {
+  @apply border-l-2 border-paper/20 pl-3 text-paper/70;
+}

@@ -1,0 +1,8 @@
+# Safety net — individual packages have their own .gitignore too, but this
+# catches any .env added in a new folder later. Secrets must never be committed.
+.env
+**/.env
+.env.local
+**/.env.local
+node_modules/
+**/node_modules/

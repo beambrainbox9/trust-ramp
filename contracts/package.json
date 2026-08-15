@@ -1,0 +1,24 @@
+{
+  "name": "trustramp-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "5.0.2",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "fp-ts": "^2.16.11",
+    "solc": "0.8.20"
+  },
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network xlayerTestnet",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network xlayerMainnet",
+    "deploy:consumer:testnet": "hardhat run scripts/deploy-consumer.js --network xlayerTestnet",
+    "deploy:consumer:mainnet": "hardhat run scripts/deploy-consumer.js --network xlayerMainnet",
+    "new-wallet": "node scripts/new-wallet.js"
+  }
+}
