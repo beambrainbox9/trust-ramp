@@ -4,6 +4,13 @@ import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import ChatTutor from "./components/ChatTutor.jsx";
 import PracticeFlow from "./components/PracticeFlow.jsx";
 import ReputationQuiz from "./components/ReputationQuiz.jsx";
+import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
+
+// Unique build fingerprint. Used to confirm the debug panel is present in the
+// deployed bundle (grep dist/**/*.js for this string after `vite build`).
+// Bump the date suffix if you meaningfully change the panel and need to
+// distinguish a new deploy from an old one still in a viewer's cache.
+const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16";
 
 // Local-storage sniff for "is there a prior TrustRamp account on THIS browser".
 // Not authoritative — the user could have cleared storage, or this may be a
@@ -156,6 +163,172 @@ function AuthEntry() {
   );
 }
 
+/**
+ * Runtime probe of the SmartWalletsProvider. READ-ONLY — no attempt to fix
+ * anything. Everything it displays is read from the LIVE client at runtime, not
+ * from build-time config, so it reflects what Privy actually built in this
+ * shipped bundle after the dashboard values landed.
+ *
+ * Ships in every build (production included) because the failure we are chasing
+ * — "Failed to create smart wallet client for chain id: 1952" — only reproduces
+ * on the deployed site. A localhost-only debug panel would be useless here.
+ */
+function useSmartWalletDiagnostics() {
+  const { client: smartWalletClient, getClientForChain } = useSmartWallets();
+  const [diag, setDiag] = React.useState({
+    phase: "probing",
+    errorMessage: null,
+    errorName: null,
+    lastCheckedAt: null,
+  });
+
+  // Poll getClientForChain and capture whatever comes back. We do NOT throw on
+  // failure — we want the error visible in the UI, not swallowed.
+  React.useEffect(() => {
+    if (!getClientForChain) return;
+    let cancelled = false;
+    let attempts = 0;
+
+    async function probe() {
+      attempts += 1;
+      try {
+        const c = await getClientForChain({ id: ACTIVE_NETWORK.chainId });
+        if (cancelled) return;
+        if (c?.account?.address) {
+          setDiag({
+            phase: "ready",
+            errorMessage: null,
+            errorName: null,
+            lastCheckedAt: new Date().toISOString(),
+            attempts,
+          });
+          return true;
+        }
+        setDiag({
+          phase: "no-account",
+          errorMessage: "getClientForChain resolved but returned no account",
+          errorName: null,
+          lastCheckedAt: new Date().toISOString(),
+          attempts,
+        });
+        return false;
+      } catch (err) {
+        if (cancelled) return;
+        setDiag({
+          phase: "error",
+          errorMessage: err?.message || String(err),
+          errorName: err?.name || null,
+          lastCheckedAt: new Date().toISOString(),
+          attempts,
+        });
+        return false;
+      }
+    }
+
+    (async () => {
+      // Give the provider up to 60s to finish coming up, then leave the last
+      // observed state on screen so the user can read it.
+      const started = Date.now();
+      while (!cancelled && Date.now() - started < 60_000) {
+        const ok = await probe();
+        if (ok) return;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getClientForChain]);
+
+  // Everything below is read straight from the live client on every render, so
+  // the panel reflects the current object — not a snapshot taken at mount.
+  const c = smartWalletClient;
+  const paymaster = c?.paymaster ?? null;
+  const paymasterCtx = c?.paymasterContext ?? null;
+  const transport = c?.transport ?? null;
+
+  // Attempt to read a URL out of whatever transport permissionless/viem built.
+  // Different internal shapes have surfaced across versions — check the common
+  // spots and print whichever we find, or "(not exposed)".
+  function pickUrl(obj) {
+    if (!obj) return null;
+    return (
+      obj.url ||
+      obj.transport?.url ||
+      obj.rpcUrls?.default?.http?.[0] ||
+      null
+    );
+  }
+
+  const bundlerUrl = pickUrl(transport) || pickUrl(c?.chain);
+  // The paymaster may be an object with methods (getPaymasterData) built from a
+  // pimlico client, or a wrapped viem client. Try each shape.
+  const paymasterUrl =
+    pickUrl(paymaster) ||
+    pickUrl(paymaster?.client) ||
+    pickUrl(paymaster?.transport) ||
+    null;
+
+  const runtimePolicyId =
+    paymasterCtx?.policyId ||
+    paymasterCtx?.sponsorshipPolicyId ||
+    null;
+
+  const bufferInGlobal =
+    typeof globalThis !== "undefined" && typeof globalThis.Buffer !== "undefined";
+  const bufferInWindow =
+    typeof window !== "undefined" && typeof window.Buffer !== "undefined";
+
+  return {
+    buildId: TR_DEBUG_PANEL_BUILD_ID,
+    probe: diag,
+    hasClient: Boolean(c),
+    hasAccount: Boolean(c?.account?.address),
+    accountAddress: c?.account?.address || null,
+    configuredChainId: ACTIVE_NETWORK.chainId,
+    clientChainId: c?.chain?.id ?? null,
+    clientChainName: c?.chain?.name ?? null,
+    bundlerUrl: bundlerUrl || "(not exposed on client)",
+    paymasterUrl: paymasterUrl || "(not exposed on client)",
+    paymasterTypeof: typeof paymaster,
+    paymasterKeys: paymaster ? Object.keys(paymaster).slice(0, 12) : null,
+    paymasterContext: paymasterCtx,
+    referencePolicyId: GAS_POLICY_ID_REFERENCE,
+    runtimePolicyId: runtimePolicyId || "(not present in paymasterContext)",
+    bufferGlobal: bufferInGlobal,
+    bufferWindow: bufferInWindow,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+    origin: typeof location !== "undefined" ? location.origin : null,
+  };
+}
+
+function SmartWalletDebugPanel({ diag }) {
+  const [open, setOpen] = React.useState(false);
+  const pretty = React.useMemo(() => JSON.stringify(diag, null, 2), [diag]);
+
+  return (
+    <div className="mt-6 border border-paper/15 rounded-md">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left px-3 py-2 text-xs font-data text-paper/70 hover:text-paper flex items-center justify-between"
+        data-tr-debug-toggle={TR_DEBUG_PANEL_BUILD_ID}
+      >
+        <span>{open ? "▼" : "▶"} Show debug info (smart wallet)</span>
+        <span className="text-paper/40">{TR_DEBUG_PANEL_BUILD_ID}</span>
+      </button>
+      {open && (
+        <pre
+          className="px-3 pb-3 text-[11px] font-data text-paper/80 whitespace-pre-wrap break-words overflow-x-auto"
+          data-tr-debug-body="1"
+        >
+          {pretty}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   // `login` deliberately not destructured: <AuthEntry /> uses the specific
   // useLoginWithPasskey / useSignupWithPasskey hooks so signup and login are
@@ -163,6 +336,9 @@ export default function App() {
   // Privy modal that defaults wrong on fresh incognito profiles.
   const { ready, authenticated, user } = usePrivy();
   const { client: smartWalletClient } = useSmartWallets();
+  // Runs on every render while authenticated — cheap read from live objects,
+  // plus a background probe of getClientForChain. See useSmartWalletDiagnostics.
+  const diag = useSmartWalletDiagnostics();
 
   // `user.wallet.address` is the raw embedded signer (the key that approves
   // things) — it can sign, but it's not the account that holds funds or sends
@@ -241,13 +417,31 @@ export default function App() {
                   Smart account: {smartAccountAddress}
                 </p>
               ) : (
-                <p className="text-guide/80 mt-1">
-                  Smart account not yet active — check the browser console for
-                  a Buffer polyfill error, then the Privy dashboard
-                  bundler/paymaster config for X Layer Testnet. See the
-                  checklist above this component in App.jsx.
-                </p>
+                <div className="text-guide/80 mt-1 space-y-1">
+                  <p>Smart account not yet active.</p>
+                  {/* Real error text from the live probe — readable on a phone
+                      or iPad with no devtools. Do NOT collapse to a friendly
+                      string; the raw message is the diagnostic. */}
+                  {diag.probe?.errorMessage ? (
+                    <p className="text-risk break-words">
+                      Error ({diag.probe.errorName || "unknown"}):{" "}
+                      {diag.probe.errorMessage}
+                    </p>
+                  ) : (
+                    <p className="text-paper/60">
+                      Probe phase: {diag.probe?.phase || "n/a"} (attempts:{" "}
+                      {diag.probe?.attempts ?? 0})
+                    </p>
+                  )}
+                  <p className="text-paper/50 text-xs">
+                    Open “Show debug info” below for full config that Privy
+                    actually built into this bundle.
+                  </p>
+                </div>
               )}
+              {/* Debug panel ships in production intentionally. The bug we are
+                  chasing only reproduces on the deployed site. */}
+              <SmartWalletDebugPanel diag={diag} />
             </div>
           ) : (
             <AuthEntry />
