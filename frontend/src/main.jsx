@@ -1,3 +1,34 @@
+// BEFORE ANY OTHER IMPORT. Privy's smart-wallet creation path (viem /
+// permissionless internals) does a dynamic `globalThis.Buffer` / `typeof Buffer`
+// probe, and if that returns undefined it silently fails and useSmartWallets()
+// returns a null client forever. On the deployed site the debug panel confirmed
+// bufferGlobal:false, bufferWindow:false, hasClient:false.
+//
+// Why vite-plugin-node-polyfills alone did NOT cover the production build:
+//   - In DEV, the plugin passes `esbuild.inject: [shim/buffer]` via
+//     optimizeDeps, which makes Buffer available as a real global during
+//     dep pre-bundling. That is why local `vite dev` worked.
+//   - In BUILD (Rollup), it configures @rollup/plugin-inject with
+//     { Buffer: "vite-plugin-node-polyfills/shims/buffer" }, which ONLY
+//     rewrites BARE `Buffer` identifiers into shim imports. It does not
+//     install a `globalThis.Buffer` binding, so any code that reads
+//     `globalThis.Buffer` or `typeof Buffer` (not `Buffer.foo(...)`) is
+//     untouched — verified by grepping dist/*.js, which contains many
+//     `globalThis.Buffer != null` READS and zero `globalThis.Buffer =`
+//     WRITES.
+//
+// So we install the global ourselves. Kept in main.jsx (not vite.config.js)
+// deliberately: this is a one-line runtime assertion at the entry point, easy
+// to see and remove. Import must sit above the Privy imports so it runs before
+// SmartWalletsProvider is constructed.
+import { Buffer as BufferPolyfill } from "buffer";
+if (typeof globalThis.Buffer === "undefined") {
+  globalThis.Buffer = BufferPolyfill;
+}
+if (typeof window !== "undefined" && typeof window.Buffer === "undefined") {
+  window.Buffer = BufferPolyfill;
+}
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { PrivyProvider } from "@privy-io/react-auth";
