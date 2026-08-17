@@ -576,7 +576,7 @@ export function usePracticePurchase(smartAccountAddress) {
       }
 
       setBusy(null);
-      setTxError(lastErr?.shortMessage || lastErr?.message || String(lastErr));
+      setTxError(lastErr?.message || lastErr?.shortMessage || String(lastErr));
       setLastFailedAction({ label, to, data });
       throw lastErr;
     },
