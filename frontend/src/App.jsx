@@ -10,7 +10,7 @@ import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
 // deployed bundle (grep dist/**/*.js for this string after `vite build`).
 // Bump the date suffix if you meaningfully change the panel and need to
 // distinguish a new deploy from an old one still in a viewer's cache.
-const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16";
+const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16-v2";
 
 // Local-storage sniff for "is there a prior TrustRamp account on THIS browser".
 // Not authoritative — the user could have cleared storage, or this may be a
@@ -175,6 +175,20 @@ function AuthEntry() {
  */
 function useSmartWalletDiagnostics() {
   const { client: smartWalletClient, getClientForChain } = useSmartWallets();
+  // Also read the Privy user object so we can surface which of the four
+  // `getClientForChain` early-out conditions is failing:
+  //   if (!(smartWalletsConfig?.enabled && user && account && signer)) return;
+  // - enabled: dashboard toggle, already confirmed true.
+  // - user: this hook's `user`.
+  // - account: the embedded wallet (an entry in user.linkedAccounts with
+  //   type: "wallet", walletClientType: "privy").
+  // - signer: `await embeddedWallet.getEthereumProvider()`, which needs an
+  //   embedded wallet to even ask.
+  // If a user's embedded wallet was never fully created (e.g. Buffer failure
+  // during signup before the polyfill was fixed on 2026-08-16), the user
+  // record exists but has no embedded wallet entry, so account is undefined
+  // and the SDK exits before any bundler call.
+  const { user, ready, authenticated } = usePrivy();
   const [diag, setDiag] = React.useState({
     phase: "probing",
     errorMessage: null,
@@ -280,12 +294,44 @@ function useSmartWalletDiagnostics() {
   const bufferInWindow =
     typeof window !== "undefined" && typeof window.Buffer !== "undefined";
 
+  // Enumerate linked accounts safely — array of type/kind labels rather than
+  // full objects (some fields carry PII we do not want in a shipped debug UI).
+  const linkedAccountSummaries = Array.isArray(user?.linkedAccounts)
+    ? user.linkedAccounts.map((a) => ({
+        type: a?.type ?? null,
+        walletClientType: a?.walletClientType ?? null,
+        connectorType: a?.connectorType ?? null,
+        chainType: a?.chainType ?? null,
+        addressHead: typeof a?.address === "string" ? a.address.slice(0, 10) : null,
+      }))
+    : null;
+
+  const embeddedWalletEntry = Array.isArray(user?.linkedAccounts)
+    ? user.linkedAccounts.find(
+        (a) => a?.type === "wallet" && a?.walletClientType === "privy"
+      )
+    : null;
+
   return {
     buildId: TR_DEBUG_PANEL_BUILD_ID,
     probe: diag,
     hasClient: Boolean(c),
     hasAccount: Boolean(c?.account?.address),
     accountAddress: c?.account?.address || null,
+    // Privy-side account state — this is what the SDK's early-out check reads.
+    // If `hasEmbeddedWallet` is false while `authenticated` is true, the user
+    // record has no embedded wallet: signup failed to create one (most likely
+    // pre-Buffer-fix), and getClientForChain will always throw for this user.
+    privyReady: ready,
+    privyAuthenticated: authenticated,
+    userId: user?.id || null,
+    userWalletAddress: user?.wallet?.address || null,
+    hasEmbeddedWallet: Boolean(embeddedWalletEntry),
+    embeddedWalletAddressHead: embeddedWalletEntry?.address
+      ? embeddedWalletEntry.address.slice(0, 10)
+      : null,
+    linkedAccountsCount: user?.linkedAccounts?.length ?? 0,
+    linkedAccounts: linkedAccountSummaries,
     configuredChainId: ACTIVE_NETWORK.chainId,
     clientChainId: c?.chain?.id ?? null,
     clientChainName: c?.chain?.name ?? null,
