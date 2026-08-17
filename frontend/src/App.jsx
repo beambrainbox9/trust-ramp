@@ -5,7 +5,12 @@ import {
   useSignupWithPasskey,
   useCreateWallet,
 } from "@privy-io/react-auth";
-import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+// SIWE-BYPASS (2026-08-17). Was: `import { useSmartWallets } from
+// "@privy-io/react-auth/smart-wallets"`. Privy's SIWE-based smart-wallet
+// linking 422s unconditionally on chain 1952 — see lib/smartAccount.js for
+// the full history. This hook matches the same `{ client, getClientForChain
+// }` shape so nothing downstream needed a rewrite.
+import { useTrustRampSmartWallet as useSmartWallets } from "./hooks/useTrustRampSmartWallet.js";
 import ChatTutor from "./components/ChatTutor.jsx";
 import PracticeFlow from "./components/PracticeFlow.jsx";
 import ReputationQuiz from "./components/ReputationQuiz.jsx";

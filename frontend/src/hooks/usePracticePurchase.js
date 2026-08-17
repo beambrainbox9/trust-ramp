@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPublicClient, http, encodeFunctionData, formatUnits, parseUnits } from "viem";
-import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+// SIWE-BYPASS (2026-08-17). See lib/smartAccount.js for why. Same
+// `{ client, getClientForChain }` shape as Privy's hook, aliased so nothing
+// below this line needs to change.
+import { useTrustRampSmartWallet as useSmartWallets } from "./useTrustRampSmartWallet.js";
 import { usePurchaseFlow } from "../context/PurchaseFlowContext.jsx";
 import {
   ACTIVE_NETWORK,

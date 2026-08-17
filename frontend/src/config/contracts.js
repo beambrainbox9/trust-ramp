@@ -73,7 +73,7 @@ export const PAYMENT_SYMBOL = "DEMO-USDC";
  * rejected by every paymaster method; this one is an "Onchain Paymaster Policy"
  * and is confirmed working. See PROJECT_PLAN §1d.
  */
-export const GAS_POLICY_ID_REFERENCE = "655835a1-eb5d-4045-b10e-24fabf56dd64";
+export const GAS_POLICY_ID_REFERENCE = "555cbdbc-7c3a-49aa-b0bb-123c9204dd5e";
 
 export const txUrl = (hash) => `${ACTIVE_NETWORK.explorer}/tx/${hash}`;
 

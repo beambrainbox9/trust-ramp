@@ -32,7 +32,6 @@ if (typeof window !== "undefined" && typeof window.Buffer === "undefined") {
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { PrivyProvider } from "@privy-io/react-auth";
-import { SmartWalletsProvider } from "@privy-io/react-auth/smart-wallets";
 import { PurchaseFlowProvider } from "./context/PurchaseFlowContext.jsx";
 import App from "./App.jsx";
 import { xLayerTestnet } from "./chains.js";
@@ -40,29 +39,26 @@ import "./index.css";
 
 // --- Day 2: wiring the actual ERC-4337 smart account (not just an EOA) ---
 //
-// Two pieces work together here, and BOTH must be set up before login
-// creates a real smart account:
+// SIWE-BYPASS (2026-08-17). SmartWalletsProvider REMOVED. It only existed to
+// back Privy's own useSmartWallets(), which nothing in this app calls
+// anymore — see hooks/useTrustRampSmartWallet.js and lib/smartAccount.js.
+// Privy's SIWE-based smart-wallet linking 422s unconditionally on chain
+// 1952 regardless of auth method, embedded-wallet state, or retry — full
+// history in lib/smartAccount.js. Leaving the provider mounted would just
+// keep firing that doomed SIWE request in the background on every login.
 //
-// 1. IN CODE (this file): PrivyProvider creates the passkey-signed embedded
-//    wallet (the key that approves things). SmartWalletsProvider is what
-//    turns that key into a smart contract account (an ERC-4337 wallet) that
-//    can actually hold funds and send transactions. Without
-//    SmartWalletsProvider, useSmartWallets() in App.jsx would have nothing
-//    to return.
+// PrivyProvider still does the one job we DO need from Privy: creates and
+// custodies the embedded EOA (the raw signing key). Everything from "turn
+// that key into a smart account" onward is now handled directly via
+// permissionless.js against Alchemy's bundler — see lib/smartAccount.js.
 //
-// 2. ON THE PRIVY DASHBOARD (cannot be done from code — Mo's task):
-//    Settings -> Smart Wallets -> provider ALCHEMY (Light Account), then add
-//    a custom chain for X Layer Testnet (chain ID 1952) and set:
-//      - Bundler URL:   https://xlayer-testnet.g.alchemy.com/v2/<ALCHEMY_API_KEY>
-//      - Paymaster URL: same URL, plus an Alchemy Gas Manager policy ID
-//        (each policy is tied to one chain and one Alchemy project)
-//      - RPC URL: the same Alchemy URL, or one of the URLs in chains.js
-//    NOTE: the bundler URL must be set EXPLICITLY. If left blank Privy falls
-//    back to Pimlico's public bundler, which returns
-//    `chain "1952" is not supported` — verified live, Aug 10 2026.
-//    Until this dashboard step is done, useSmartWallets() will not error,
-//    but no smart account will be created on login — this is a "flip a
-//    switch in a dashboard" step, not something I can wire blind from here.
+// The Privy dashboard's Smart Wallets config (bundler/paymaster URL, gas
+// policy) is no longer read at runtime by anything — it was only ever
+// consumed by the code path just removed. Keep it filled in anyway, since
+// it's harmless and documents "this app's bundler is Alchemy" for anyone
+// checking the dashboard. The values that now actually matter at runtime
+// live in frontend/.env: VITE_ALCHEMY_BUNDLER_URL and
+// config/contracts.js's GAS_POLICY_ID_REFERENCE.
 //
 // PROVIDER HISTORY — read before changing this again:
 // thirdweb was chosen originally on the belief that it "explicitly lists X
@@ -93,23 +89,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         appearance: { theme: "dark", accentColor: "#D8A657" },
       }}
     >
-      {/*
-        No `config` prop on purpose. SmartWalletsProvider only accepts
-        `{ paymasterContext }` (see the props type in
-        @privy-io/react-auth/dist/dts/smart-wallets.d.ts) — and Privy already
-        builds that from the Alchemy Gas Manager policy set in the dashboard.
-        Passing it from code here would OVERRIDE the dashboard value, so the
-        two could silently disagree. The dashboard is the single source of
-        truth for both the bundler URL and the gas policy.
-      */}
-      <SmartWalletsProvider>
-        {/* Shared reactive signal for purchase-flow transactions. Kept innermost
-            because only components below <App /> consume it, and it should not
-            outlive the authenticated session. */}
-        <PurchaseFlowProvider>
-          <App />
-        </PurchaseFlowProvider>
-      </SmartWalletsProvider>
+      {/* Shared reactive signal for purchase-flow transactions. Kept innermost
+          because only components below <App /> consume it, and it should not
+          outlive the authenticated session. */}
+      <PurchaseFlowProvider>
+        <App />
+      </PurchaseFlowProvider>
     </PrivyProvider>
   </React.StrictMode>
 );
