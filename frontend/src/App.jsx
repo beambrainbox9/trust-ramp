@@ -1,5 +1,10 @@
 import React from "react";
-import { usePrivy, useLoginWithPasskey, useSignupWithPasskey } from "@privy-io/react-auth";
+import {
+  usePrivy,
+  useLoginWithPasskey,
+  useSignupWithPasskey,
+  useCreateWallet,
+} from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import ChatTutor from "./components/ChatTutor.jsx";
 import PracticeFlow from "./components/PracticeFlow.jsx";
@@ -10,7 +15,7 @@ import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
 // deployed bundle (grep dist/**/*.js for this string after `vite build`).
 // Bump the date suffix if you meaningfully change the panel and need to
 // distinguish a new deploy from an old one still in a viewer's cache.
-const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16-v2";
+const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16-v3-autoheal";
 
 // Local-storage sniff for "is there a prior TrustRamp account on THIS browser".
 // Not authoritative — the user could have cleared storage, or this may be a
@@ -375,6 +380,96 @@ function SmartWalletDebugPanel({ diag }) {
   );
 }
 
+/**
+ * Auto-heal: create an embedded wallet for accounts that don't have one.
+ *
+ * WHY THIS EXISTS (2026-08-17). The Privy dashboard has "Automatically create
+ * embedded wallets on login" ON, but its fine print says:
+ *   "Automatic wallet creation only applies to login via the Privy modal and
+ *    not from whitelabel login methods."
+ * Our AuthEntry uses useLoginWithPasskey / useSignupWithPasskey (whitelabel
+ * hooks — chosen deliberately on Aug 15 to route signup vs. login to the
+ * correct WebAuthn ceremonies in incognito). Consequence: passkey signup
+ * authenticates the user but no embedded wallet is ever attached. The Privy
+ * smart-wallet SDK then early-outs in getClientForChain because `signer` is
+ * missing, and throws "Failed to create smart wallet client for chain id: 1952"
+ * on a loop. Confirmed live on 2026-08-17 for
+ *   did:privy:cmsv62v6t00ta0bl4vhd6w61v
+ * where linkedAccounts contained only `{type:"passkey"}`.
+ *
+ * The fix is one Privy call — useCreateWallet().createWallet() — but only when
+ * the user actually needs it. createWallet() throws if an embedded wallet
+ * already exists, so we gate on !hasEmbeddedWallet and on !inFlight to prevent
+ * a StrictMode double-fire from producing that error in dev.
+ */
+function useAutoHealEmbeddedWallet({ authenticated, hasEmbeddedWallet, ready }) {
+  const [state, setState] = React.useState({
+    phase: "idle", // 'idle' | 'creating' | 'done' | 'error'
+    error: null,
+    lastAttemptAt: null,
+  });
+  const inFlightRef = React.useRef(false);
+  const { createWallet } = useCreateWallet({
+    onSuccess: ({ wallet }) => {
+      console.log(`[TR-AUTOHEAL] createWallet SUCCESS address=${wallet?.address}`);
+      setState({ phase: "done", error: null, lastAttemptAt: new Date().toISOString() });
+      inFlightRef.current = false;
+    },
+    onError: (err) => {
+      console.log(`[TR-AUTOHEAL] createWallet ERROR: ${err?.message || err}`);
+      setState({
+        phase: "error",
+        error: err?.message || String(err),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      inFlightRef.current = false;
+    },
+  });
+
+  // Auto-fire once when we observe the missing-wallet state. Gated on ready +
+  // authenticated so we do not race Privy's own hydration.
+  React.useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (hasEmbeddedWallet) return;
+    if (inFlightRef.current) return;
+    if (state.phase === "done" || state.phase === "error") return;
+    inFlightRef.current = true;
+    setState({ phase: "creating", error: null, lastAttemptAt: new Date().toISOString() });
+    console.log("[TR-AUTOHEAL] no embedded wallet on record — calling createWallet()");
+    // createWallet is not itself a promise in some SDK versions — the callbacks
+    // above are the source of truth. Fire-and-forget is intentional.
+    try {
+      createWallet();
+    } catch (err) {
+      console.log(`[TR-AUTOHEAL] createWallet threw synchronously: ${err?.message || err}`);
+      setState({
+        phase: "error",
+        error: err?.message || String(err),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      inFlightRef.current = false;
+    }
+  }, [ready, authenticated, hasEmbeddedWallet, state.phase, createWallet]);
+
+  const retry = React.useCallback(() => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setState({ phase: "creating", error: null, lastAttemptAt: new Date().toISOString() });
+    try {
+      createWallet();
+    } catch (err) {
+      setState({
+        phase: "error",
+        error: err?.message || String(err),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      inFlightRef.current = false;
+    }
+  }, [createWallet]);
+
+  return { ...state, retry };
+}
+
 export default function App() {
   // `login` deliberately not destructured: <AuthEntry /> uses the specific
   // useLoginWithPasskey / useSignupWithPasskey hooks so signup and login are
@@ -385,6 +480,14 @@ export default function App() {
   // Runs on every render while authenticated — cheap read from live objects,
   // plus a background probe of getClientForChain. See useSmartWalletDiagnostics.
   const diag = useSmartWalletDiagnostics();
+  // See the block comment above useAutoHealEmbeddedWallet for why this call
+  // is here at all. Reads hasEmbeddedWallet off `diag` so the two hooks agree
+  // on what "has a wallet" means.
+  const autoHeal = useAutoHealEmbeddedWallet({
+    ready,
+    authenticated,
+    hasEmbeddedWallet: diag.hasEmbeddedWallet,
+  });
 
   // `user.wallet.address` is the raw embedded signer (the key that approves
   // things) — it can sign, but it's not the account that holds funds or sends
@@ -464,20 +567,52 @@ export default function App() {
                 </p>
               ) : (
                 <div className="text-guide/80 mt-1 space-y-1">
-                  <p>Smart account not yet active.</p>
-                  {/* Real error text from the live probe — readable on a phone
-                      or iPad with no devtools. Do NOT collapse to a friendly
-                      string; the raw message is the diagnostic. */}
-                  {diag.probe?.errorMessage ? (
-                    <p className="text-risk break-words">
-                      Error ({diag.probe.errorName || "unknown"}):{" "}
-                      {diag.probe.errorMessage}
-                    </p>
+                  {/* Auto-heal has the strongest signal — surface it first. If
+                      the user has no embedded wallet, that IS the whole reason
+                      the smart account is missing (see block comment on
+                      useAutoHealEmbeddedWallet). Once the wallet lands, Privy
+                      swaps in a real smart wallet client and this branch
+                      unmounts on its own. */}
+                  {!diag.hasEmbeddedWallet ? (
+                    autoHeal.phase === "creating" ? (
+                      <p className="text-paper/70">
+                        Finishing wallet setup… this happens once per account.
+                      </p>
+                    ) : autoHeal.phase === "error" ? (
+                      <div className="space-y-2">
+                        <p className="text-risk break-words">
+                          Wallet setup failed: {autoHeal.error}
+                        </p>
+                        <button
+                          onClick={autoHeal.retry}
+                          className="border border-paper/30 text-paper text-xs px-3 py-1 rounded hover:border-paper/60"
+                        >
+                          Retry wallet setup
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-paper/60">
+                        Setting up your wallet…
+                      </p>
+                    )
                   ) : (
-                    <p className="text-paper/60">
-                      Probe phase: {diag.probe?.phase || "n/a"} (attempts:{" "}
-                      {diag.probe?.attempts ?? 0})
-                    </p>
+                    <>
+                      <p>Smart account not yet active.</p>
+                      {/* Real error text from the live probe — readable on a
+                          phone or iPad with no devtools. Do NOT collapse to a
+                          friendly string; the raw message is the diagnostic. */}
+                      {diag.probe?.errorMessage ? (
+                        <p className="text-risk break-words">
+                          Error ({diag.probe.errorName || "unknown"}):{" "}
+                          {diag.probe.errorMessage}
+                        </p>
+                      ) : (
+                        <p className="text-paper/60">
+                          Probe phase: {diag.probe?.phase || "n/a"} (attempts:{" "}
+                          {diag.probe?.attempts ?? 0})
+                        </p>
+                      )}
+                    </>
                   )}
                   <p className="text-paper/50 text-xs">
                     Open “Show debug info” below for full config that Privy
@@ -487,7 +622,7 @@ export default function App() {
               )}
               {/* Debug panel ships in production intentionally. The bug we are
                   chasing only reproduces on the deployed site. */}
-              <SmartWalletDebugPanel diag={diag} />
+              <SmartWalletDebugPanel diag={{ ...diag, autoHeal }} />
             </div>
           ) : (
             <AuthEntry />
