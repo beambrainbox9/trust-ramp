@@ -95,6 +95,16 @@ function AuthEntry() {
   const { signupWithPasskey } = useSignupWithPasskey({
     onError: (err) => console.log(`[TR-AUTH] signupWithPasskey error: ${err?.message || err}`),
   });
+  // DIAGNOSTIC (2026-08-17). Temporary fallback path via the Privy modal to
+  // isolate whether the SIWE 422 on smart-wallet linking is passkey-specific.
+  // Also — the Privy modal path auto-creates the embedded wallet (dashboard
+  // setting "Automatically create embedded wallets on login" only fires for
+  // the modal, not the whitelabel hooks), so AUTOHEAL is bypassed on this
+  // path, removing a variable from the failure. If this path succeeds and
+  // reaches the Practice screen where whitelabel passkey does not, the bug
+  // is scoped to whitelabel passkey signup and we can ship with modal auth
+  // for the demo. Remove after root-cause is found.
+  const { login: loginWithModal } = usePrivy();
   const returning = React.useMemo(hasLikelyReturningUser, []);
   React.useEffect(() => {
     console.log(`[TR-AUTH] mounted returningUserHint=${returning}`);
@@ -156,6 +166,13 @@ function AuthEntry() {
     "bg-guide text-ink font-medium px-6 py-3 rounded-lg hover:brightness-110 transition";
   const secondaryClass =
     "border border-paper/20 text-paper font-medium px-6 py-3 rounded-lg hover:border-paper/40 transition";
+  // DIAGNOSTIC — plain link so it's visually distinct from the primary flow.
+  const diagnosticClass =
+    "text-paper/50 underline hover:text-paper/80 text-xs mt-4";
+  const doModalLogin = () => {
+    console.log("[TR-AUTH-DIAG] opening Privy modal (bypasses whitelabel passkey)");
+    loginWithModal();
+  };
 
   return (
     <div>
@@ -179,6 +196,12 @@ function AuthEntry() {
             </button>
           </>
         )}
+      </div>
+      {/* DIAGNOSTIC — remove once passkey SIWE 422 is root-caused. */}
+      <div>
+        <button onClick={doModalLogin} className={diagnosticClass}>
+          Trouble with passkey? Try email instead (diagnostic)
+        </button>
       </div>
       {/* Passkey-save guidance. When Chrome offers a choice between "Google
           Password Manager" and "Windows Hello or external security key", the
