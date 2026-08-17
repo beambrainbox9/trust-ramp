@@ -100,22 +100,51 @@ function AuthEntry() {
     console.log(`[TR-AUTH] mounted returningUserHint=${returning}`);
   }, [returning]);
 
+  // Click-guard against double-invocation of the WebAuthn ceremony.
+  //
+  // On 2026-08-17, fresh-account signup on trust-ramp.vercel.app 422'd every
+  // time on Privy's `link_smart_wallet` endpoint with "Invalid SIWE message
+  // and/or signature". Console showed TWO `[TR-AUTH] signupWithPasskey CLICKED`
+  // + TWO `RESOLVED` lines per attempted signup. Both invocations completed
+  // signing; each generated its own SIWE link POST; the second consumed the
+  // same nonce the first had already burned server-side, so Privy rejected
+  // it. Most likely trigger on iPad Safari: the passkey sheet is slow to
+  // appear and the user taps again out of frustration — but the ref-guard
+  // holds regardless of the cause (double-tap, event replay, SDK callback,
+  // anything). React StrictMode is not the cause: production build, and
+  // StrictMode never double-invokes event handlers anyway.
+  const inFlightRef = React.useRef(false);
+
   const doLogin = async () => {
+    if (inFlightRef.current) {
+      console.log("[TR-AUTH] loginWithPasskey CLICKED (ignored — already in flight)");
+      return;
+    }
+    inFlightRef.current = true;
     console.log("[TR-AUTH] loginWithPasskey CLICKED");
     try {
       await loginWithPasskey();
       console.log("[TR-AUTH] loginWithPasskey RESOLVED");
     } catch (err) {
       console.log(`[TR-AUTH] loginWithPasskey THREW: ${err?.message || err}`);
+    } finally {
+      inFlightRef.current = false;
     }
   };
   const doSignup = async () => {
+    if (inFlightRef.current) {
+      console.log("[TR-AUTH] signupWithPasskey CLICKED (ignored — already in flight)");
+      return;
+    }
+    inFlightRef.current = true;
     console.log("[TR-AUTH] signupWithPasskey CLICKED");
     try {
       await signupWithPasskey();
       console.log("[TR-AUTH] signupWithPasskey RESOLVED");
     } catch (err) {
       console.log(`[TR-AUTH] signupWithPasskey THREW: ${err?.message || err}`);
+    } finally {
+      inFlightRef.current = false;
     }
   };
 
