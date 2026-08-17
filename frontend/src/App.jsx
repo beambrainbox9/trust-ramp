@@ -15,7 +15,7 @@ import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
 // deployed bundle (grep dist/**/*.js for this string after `vite build`).
 // Bump the date suffix if you meaningfully change the panel and need to
 // distinguish a new deploy from an old one still in a viewer's cache.
-const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-16-v3-autoheal";
+const TR_DEBUG_PANEL_BUILD_ID = "TR-DEBUG-PANEL-2026-08-17-v4-gated";
 
 // Local-storage sniff for "is there a prior TrustRamp account on THIS browser".
 // Not authoritative — the user could have cleared storage, or this may be a
@@ -357,6 +357,25 @@ function useSmartWalletDiagnostics() {
 function SmartWalletDebugPanel({ diag }) {
   const [open, setOpen] = React.useState(false);
   const pretty = React.useMemo(() => JSON.stringify(diag, null, 2), [diag]);
+
+  // Gate the panel on `?debug=1` — kept in the shipped bundle so support can
+  // send a user the URL and get the full JSON back, but hidden from normal
+  // visitors now that the smart-wallet flow is settled. The bug we chased only
+  // reproduces on the deployed site, so removing the panel entirely would lose
+  // us the tool we would need for the next report. Also honour the previous
+  // localStorage flip `trustramp.debug=1` for support sessions.
+  const isDebug = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("debug") === "1") return true;
+      if (window.localStorage.getItem("trustramp.debug") === "1") return true;
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }, []);
+  if (!isDebug) return null;
 
   return (
     <div className="mt-6 border border-paper/15 rounded-md">

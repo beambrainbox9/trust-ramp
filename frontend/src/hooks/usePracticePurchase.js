@@ -233,25 +233,36 @@ export function usePracticePurchase(smartAccountAddress) {
 
     (async () => {
       const started = Date.now();
+      // Diagnostic logging is now transition-only. Before 2026-08-17 this
+      // printed on EVERY poll (every 500ms) which produced 30+ lines per page
+      // load and buried real errors. Once the paymaster wiring was settled the
+      // per-poll snapshot stopped earning its keep — but the FIRST snapshot,
+      // and any CHANGE in the observable signals, still matter for the next
+      // regression report.
+      let lastSig = null;
+      let lastErr = null;
       while (!cancelled && Date.now() - started < READY_TIMEOUT_MS) {
         try {
           const c = await getClientForChain({ id: ACTIVE_NETWORK.chainId });
-
-          // DIAGNOSTIC — this is the fact that confirms or kills the causal
-          // chain above. It prints on EVERY poll regardless of outcome, so a
-          // pass cannot hide it. Remove once the behaviour is settled.
-          console.log(
-            "[TR-PAYMASTER] " +
-              JSON.stringify({
-                tMs: Date.now() - started,
-                hasClient: Boolean(c),
-                hasAccount: Boolean(c?.account?.address),
-                paymasterTypeof: typeof c?.paymaster,
-                paymasterPresent: Boolean(c?.paymaster),
-                paymasterKeys: c?.paymaster ? Object.keys(c.paymaster).slice(0, 8) : null,
-                paymasterContext: c?.paymasterContext ?? null,
-              })
-          );
+          const sig =
+            (c ? "1" : "0") +
+            (c?.account?.address ? "1" : "0") +
+            (c?.paymaster ? "1" : "0");
+          if (sig !== lastSig) {
+            lastSig = sig;
+            console.log(
+              "[TR-PAYMASTER] " +
+                JSON.stringify({
+                  tMs: Date.now() - started,
+                  hasClient: Boolean(c),
+                  hasAccount: Boolean(c?.account?.address),
+                  paymasterTypeof: typeof c?.paymaster,
+                  paymasterPresent: Boolean(c?.paymaster),
+                  paymasterKeys: c?.paymaster ? Object.keys(c.paymaster).slice(0, 8) : null,
+                  paymasterContext: c?.paymasterContext ?? null,
+                })
+            );
+          }
 
           if (c?.account?.address && c.paymaster) {
             readyClientRef.current = c;
@@ -259,13 +270,18 @@ export function usePracticePurchase(smartAccountAddress) {
             return;
           }
         } catch (err) {
-          console.log("[TR-PAYMASTER] poll error:", err?.message || String(err));
+          const msg = err?.message || String(err);
+          if (msg !== lastErr) {
+            lastErr = msg;
+            console.log("[TR-PAYMASTER] poll error:", msg);
+          }
         }
         // Poll for a CONDITION. The button is enabled by an observed value, not
         // by elapsed time — the interval is only how often we look.
         await new Promise((r) => setTimeout(r, 500));
       }
       if (!cancelled) {
+        console.log("[TR-PAYMASTER] TIMEOUT after 20s — gas sponsorship never wired up");
         setReadyState({
           ready: false,
           phase: "timeout",
