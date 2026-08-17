@@ -40,19 +40,25 @@ function readSaved(address) {
     const raw = window.localStorage.getItem(`${QUIZ_STORAGE_KEY}:${address}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || typeof parsed.savedAt !== "number") return null;
+    // Completed shape — grading succeeded. Not bound to server session TTL:
+    // the intent it carries has its own TTL server-side, but the SCORES stay
+    // valid to display forever. If a stale intent later fails mint, that
+    // surfaces as an error and the user can retake.
+    if (parsed.completed === true && parsed.result && typeof parsed.result === "object") {
+      return { kind: "completed", result: parsed.result, savedAt: parsed.savedAt };
+    }
+    // In-flight shape — a resumable answering/grading session.
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
       typeof parsed.sessionId !== "string" ||
       !Array.isArray(parsed.questions) ||
       typeof parsed.cursor !== "number" ||
-      typeof parsed.answers !== "object" ||
-      typeof parsed.savedAt !== "number"
+      typeof parsed.answers !== "object"
     ) {
       return null;
     }
     if (Date.now() - parsed.savedAt > SESSION_MAX_AGE_MS) return null;
-    return parsed;
+    return { kind: "inflight", ...parsed };
   } catch {
     return null;
   }
@@ -70,6 +76,21 @@ function writeSaved(address, snapshot) {
     );
   } catch {
     /* storage unavailable — non-fatal */
+  }
+}
+
+function writeSavedResults(address, result) {
+  if (!address) return;
+  try {
+    window.localStorage.setItem(
+      `${QUIZ_STORAGE_KEY}:${address}`,
+      JSON.stringify({ completed: true, result, savedAt: Date.now() })
+    );
+    console.log(
+      `[TR-QUIZ-RESULTS] WROTE key=${QUIZ_STORAGE_KEY}:${address} overall=${result?.overall} passedRWA=${result?.passedRWA}`
+    );
+  } catch {
+    /* non-fatal */
   }
 }
 
@@ -192,6 +213,21 @@ export function useQuizFlow(smartAccountAddress) {
       restoredRef.current = true;
       return;
     }
+    // A completed snapshot outranks an in-flight one: if the user finished and
+    // graded, reload should land them back on the results screen, not on the
+    // last question. (Before this branch, the persist effect's last in-flight
+    // write — cursor at the final question — was restored as ANSWERING and the
+    // graded state was silently discarded.)
+    if (saved.kind === "completed") {
+      console.log(
+        `[TR-QUIZ-RESULTS] RESTORED key=${QUIZ_STORAGE_KEY}:${smartAccountAddress} ` +
+          `overall=${saved.result?.overall} passedRWA=${saved.result?.passedRWA} ageMs=${Date.now() - saved.savedAt}`
+      );
+      setPhase((current) => (current === QUIZ_PHASE.IDLE ? QUIZ_PHASE.GRADED : current));
+      setResult(saved.result);
+      restoredRef.current = true;
+      return;
+    }
     console.log(
       `[TR-QUIZ-STATE] READ key=${QUIZ_STORAGE_KEY}:${smartAccountAddress} ` +
         `sessionId=${saved.sessionId.slice(0, 12)}... cursor=${saved.cursor}/${saved.questions.length} ` +
@@ -271,6 +307,11 @@ export function useQuizFlow(smartAccountAddress) {
           const graded = await postJson("/api/quiz/complete", { sessionId });
           setResult(graded);
           setPhase(QUIZ_PHASE.GRADED);
+          // Overwrite the in-flight snapshot with the completed one so a reload
+          // returns to the results screen instead of resuming Q8 with a blank
+          // answer box. The persist effect below is scoped to ANSWERING/GRADING
+          // and won't touch this key while phase === GRADED.
+          writeSavedResults(smartAccountAddress, graded);
         }
       } catch (err) {
         setError(err.message || String(err));
@@ -281,7 +322,7 @@ export function useQuizFlow(smartAccountAddress) {
         setPendingSubmit(false);
       }
     },
-    [sessionId, questions, cursor, pendingSubmit, phase]
+    [sessionId, questions, cursor, pendingSubmit, phase, smartAccountAddress]
   );
 
   /**

@@ -225,11 +225,34 @@ export function usePracticePurchase(smartAccountAddress) {
   const readyClientRef = useRef(null);
   const READY_TIMEOUT_MS = 20_000;
 
+  // SIWE-RACE FIX (2026-08-17). Previously this effect depended on the
+  // `smartWalletClient` OBJECT and started polling `getClientForChain`
+  // immediately, even before the smart wallet had been linked with Privy.
+  // Concurrent unlinked `getClientForChain` calls (this loop + the diagnostics
+  // loop in App.jsx) each triggered Privy's internal `linkSmartWallet` SIWE
+  // flow, and the second POST to auth.privy.io/v1/siwe/link_smart_wallet 422'd
+  // with "Invalid SIWE message and/or signature" because the first had
+  // already consumed the nonce. Symptom: fresh accounts couldn't create a
+  // smart wallet on X Layer testnet.
+  //
+  // Two changes stop the race:
+  //   1. Gate on `smartWalletClient?.account?.address` existing — once the
+  //      address is populated, Privy has already completed the SIWE link,
+  //      so subsequent `getClientForChain` calls hit its cache and don't
+  //      retrigger the flow.
+  //   2. Depend on the address STRING (not the client object). The client
+  //      object reference changes multiple times during construction and
+  //      each change restarted the poll loop, producing the two `tMs`-
+  //      distinct `[TR-PAYMASTER] hasClient:true` lines seen in the failing
+  //      console. A string dep transitions once (null → address) and stays
+  //      stable after.
+  const smartAccountAddr = smartWalletClient?.account?.address ?? null;
   useEffect(() => {
     let cancelled = false;
     readyClientRef.current = null;
     setReadyState({ ready: false, phase: "waiting", error: null });
     if (!getClientForChain) return;
+    if (!smartAccountAddr) return;
 
     (async () => {
       const started = Date.now();
@@ -293,7 +316,7 @@ export function usePracticePurchase(smartAccountAddress) {
     return () => {
       cancelled = true;
     };
-  }, [getClientForChain, smartWalletClient]);
+  }, [getClientForChain, smartAccountAddr]);
 
   const ready = readyState.ready;
 

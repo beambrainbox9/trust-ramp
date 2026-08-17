@@ -201,10 +201,19 @@ function useSmartWalletDiagnostics() {
     lastCheckedAt: null,
   });
 
-  // Poll getClientForChain and capture whatever comes back. We do NOT throw on
-  // failure — we want the error visible in the UI, not swallowed.
+  // SIWE-RACE FIX (2026-08-17). Was previously calling `getClientForChain`
+  // concurrently with usePracticePurchase's paymaster loop, both before the
+  // smart wallet's SIWE link had completed. Privy's `linkSmartWallet` POST
+  // returned 422 "Invalid SIWE message and/or signature" for whichever call
+  // lost the race. Gating this probe on the smart-wallet address existing
+  // means the link has already succeeded before we probe — Privy returns a
+  // cached client and no fresh SIWE is signed. If the smart wallet never
+  // materialises, the AUTOHEAL logs and the phase "probing" surface that on
+  // their own.
+  const smartAccountAddr = smartWalletClient?.account?.address ?? null;
   React.useEffect(() => {
     if (!getClientForChain) return;
+    if (!smartAccountAddr) return;
     let cancelled = false;
     let attempts = 0;
 
@@ -258,7 +267,7 @@ function useSmartWalletDiagnostics() {
     return () => {
       cancelled = true;
     };
-  }, [getClientForChain]);
+  }, [getClientForChain, smartAccountAddr]);
 
   // Everything below is read straight from the live client on every render, so
   // the panel reflects the current object — not a snapshot taken at mount.
