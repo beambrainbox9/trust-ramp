@@ -8,6 +8,7 @@ import {
   txUrl,
 } from "../config/contracts.js";
 import { apiUrl } from "../config/api.js";
+import ApprovalModal from "./ApprovalModal.jsx";
 
 // Day 5-6 practice sandbox: AI-narrated approve -> buy on testnet.
 //
@@ -445,8 +446,8 @@ export default function PracticeFlow({ smartAccountAddress }) {
           {p.step === STEP.APPROVAL && (
             <button
               onClick={async () => {
-                await p.approveExact(cost);
-                p.setStep(STEP.APPROVAL_DONE);
+                const hash = await p.approveExact(cost);
+                if (hash) p.setStep(STEP.APPROVAL_DONE);
               }}
               disabled={p.busy !== null || !p.ready}
               className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
@@ -490,8 +491,8 @@ export default function PracticeFlow({ smartAccountAddress }) {
           {p.step === STEP.PURCHASE && (
             <button
               onClick={async () => {
-                await p.buy(buyAmountWei, cost);
-                p.setStep(STEP.PURCHASE_DONE);
+                const hash = await p.buy(buyAmountWei, cost);
+                if (hash) p.setStep(STEP.PURCHASE_DONE);
               }}
               disabled={p.busy !== null || !p.ready}
               className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
@@ -564,6 +565,12 @@ export default function PracticeFlow({ smartAccountAddress }) {
           </div>
         </div>
       )}
+
+      <ApprovalModal
+        tx={p.pendingApproval}
+        onApprove={p.approvePending}
+        onCancel={p.cancelPending}
+      />
 
       {/* Graceful failure. Before this, a failed transaction left the raw error
           sitting on screen with no way forward — the user had to know to reload
