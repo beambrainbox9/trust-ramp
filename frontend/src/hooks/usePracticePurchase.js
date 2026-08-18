@@ -162,6 +162,12 @@ export function usePracticePurchase(smartAccountAddress) {
   const [txError, setTxError] = useState(null);
   const [lastFailedAction, setLastFailedAction] = useState(null); // for the Retry button
 
+  // Human-approval modal state. `send()` sets this before entering the retry
+  // loop and awaits the user's decision. The consuming component renders
+  // <ApprovalModal> when this is non-null.
+  const [pendingApproval, setPendingApproval] = useState(null);
+  const approvalResolveRef = useRef(null);
+
   /**
    * User-triggered restart of the practice walkthrough.
    *
@@ -438,7 +444,7 @@ export function usePracticePurchase(smartAccountAddress) {
   // brand-new account fails, PROJECT_PLAN §1d lists the two known culprits
   // (priority-fee floor, verificationGasLimit band) with their exact signatures.
   const send = useCallback(
-    async (label, to, data) => {
+    async (label, to, data, txMeta) => {
       // Send through the client Privy RESOLVED, never the one from render — the
       // latter can still be mid-construction. If readiness hasn't landed yet we
       // await it here rather than firing early; the button is disabled in that
@@ -458,6 +464,31 @@ export function usePracticePurchase(smartAccountAddress) {
       setBusy(label);
       setTxError(null);
       setLastFailedAction(null);
+
+      // ==================================================================
+      // HUMAN-APPROVAL GATE
+      // ==================================================================
+      // The SIWE-bypass (2026-08-17) replaced Privy's smart-wallet client
+      // with useTrustRampSmartWallet.js, whose client.sendTransaction has
+      // no UI step at all. Every transaction on this path — testnet
+      // included — submits with no human click unless gated here.
+      //
+      // This prompt sits ONCE, before the retry loop — a transient-error
+      // retry never re-prompts for the same transaction.
+      try {
+        await new Promise((resolve, reject) => {
+          approvalResolveRef.current = { resolve, reject };
+          setPendingApproval(txMeta);
+        });
+      } catch {
+        setBusy(null);
+        setPendingApproval(null);
+        approvalResolveRef.current = null;
+        return;
+      } finally {
+        setPendingApproval(null);
+        approvalResolveRef.current = null;
+      }
 
       // The readiness settle window above is a heuristic, not a guarantee, so
       // this is the backstop: retry the KNOWN-transient initialisation failures
@@ -506,35 +537,6 @@ export function usePracticePurchase(smartAccountAddress) {
       let lastErr;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          // ==================================================================
-          // HUMAN-APPROVAL GATE — LOCKED. DO NOT SUPPRESS. DO NOT SCOPE AWAY.
-          // ==================================================================
-          // Privy's wallet confirmation modal is deliberately NOT suppressed
-          // here. It is the per-transaction human-approval step: it shows the
-          // amount, spender, token, network and fee, and the transaction is only
-          // submitted after the user clicks Approve in it. No sendTransaction
-          // options are passed, so `enforce_wallet_uis` in the Privy dashboard
-          // governs and the modal always appears.
-          //
-          // PROJECT_PLAN §5a, confirmed Aug 7: human approval is required for
-          // EVERY transaction. It is the product's core claim — the AI prepares,
-          // a human decides.
-          //
-          // THIS WAS REMOVED ONCE, ON AUG 11, AND IT WAS A SERIOUS MISTAKE.
-          // The reasoning was that Privy's modal renders a misleading red
-          // "gas required exceeds allowance (0)" — its pre-flight eth_estimateGas
-          // ignores the paymaster, so it fails even though the sponsored
-          // transaction then succeeds. Passing
-          // `{ uiOptions: { showWalletUIs: false } }` hid the message, and also
-          // silently converted the flow to AUTO-EXECUTION with no human consent.
-          //
-          // That trade is never acceptable. A misleading error costs a moment of
-          // confusion. A missing consent step moves someone's money without
-          // asking. If the two ever conflict again, the error stays.
-          //
-          // If the red text must be addressed, do it by giving Privy an accurate
-          // estimate or by adding OUR OWN confirmation step in front — never by
-          // removing a confirmation.
           const hash = await client.sendTransaction({ to, data, value: 0n });
           const receipt = await publicClient.waitForTransactionReceipt({
             hash,
@@ -577,7 +579,7 @@ export function usePracticePurchase(smartAccountAddress) {
 
       setBusy(null);
       setTxError(lastErr?.message || lastErr?.shortMessage || String(lastErr));
-      setLastFailedAction({ label, to, data });
+      setLastFailedAction({ label, to, data, txMeta });
       throw lastErr;
     },
     [getClientForChain, refresh, emitTransaction, smartAccountAddress]
@@ -589,8 +591,8 @@ export function usePracticePurchase(smartAccountAddress) {
    *  "reload the page and start again". */
   const retryLast = useCallback(async () => {
     if (!lastFailedAction) return;
-    const { label, to, data } = lastFailedAction;
-    return send(label, to, data);
+    const { label, to, data, txMeta } = lastFailedAction;
+    return send(label, to, data, txMeta);
   }, [lastFailedAction, send]);
 
   const claimFaucet = useCallback(
@@ -598,7 +600,14 @@ export function usePracticePurchase(smartAccountAddress) {
       send(
         "faucet",
         contracts.paymentToken,
-        encodeFunctionData({ abi: ERC20_ABI, functionName: "claimFaucet", args: [] })
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "claimFaucet", args: [] }),
+        {
+          label: "Claim faucet tokens",
+          amount: "Up to 5,000 DEMO-USDC",
+          spender: contracts.paymentToken,
+          token: "DEMO-USDC",
+          network: ACTIVE_NETWORK.label,
+        }
       ),
     [send]
   );
@@ -620,7 +629,14 @@ export function usePracticePurchase(smartAccountAddress) {
           abi: ERC20_ABI,
           functionName: "approve",
           args: [contracts.sale, costUnits],
-        })
+        }),
+        {
+          label: "Approve spending",
+          amount: `${formatUnits(costUnits, PAYMENT_DECIMALS)} DEMO-USDC`,
+          spender: contracts.sale,
+          token: "DEMO-USDC",
+          network: ACTIVE_NETWORK.label,
+        }
       );
     },
     [send]
@@ -635,11 +651,26 @@ export function usePracticePurchase(smartAccountAddress) {
           abi: SALE_ABI,
           functionName: "buy",
           args: [tokenAmountWei, maxPaymentIn],
-        })
+        }),
+        {
+          label: "Purchase asset tokens",
+          amount: `${formatUnits(tokenAmountWei, ASSET_DECIMALS)} DEMO-xTBILL for ${formatUnits(maxPaymentIn, PAYMENT_DECIMALS)} DEMO-USDC`,
+          spender: contracts.sale,
+          token: "DEMO-xTBILL",
+          network: ACTIVE_NETWORK.label,
+        }
       );
     },
     [send]
   );
+
+  const approvePending = useCallback(() => {
+    approvalResolveRef.current?.resolve();
+  }, []);
+
+  const cancelPending = useCallback(() => {
+    approvalResolveRef.current?.reject(new Error("User cancelled"));
+  }, []);
 
   return {
     ...state,
@@ -659,6 +690,9 @@ export function usePracticePurchase(smartAccountAddress) {
     claimFaucet,
     approveExact,
     buy,
+    pendingApproval,
+    approvePending,
+    cancelPending,
     // Formatting helpers so components never guess at decimals.
     fmtPayment: (v) => formatUnits(v ?? 0n, PAYMENT_DECIMALS),
     fmtAsset: (v) => formatUnits(v ?? 0n, ASSET_DECIMALS),
