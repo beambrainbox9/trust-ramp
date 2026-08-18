@@ -70,10 +70,13 @@ export const PAYMENT_SYMBOL = "DEMO-USDC";
  * Recorded here for reference only — Privy reads the policy from its own
  * dashboard, and passing it from code would override that (see main.jsx). The
  * first policy was the wrong TYPE ("Bundler Sponsored Operations") and was
- * rejected by every paymaster method; this one is an "Onchain Paymaster Policy"
- * and is confirmed working. See PROJECT_PLAN §1d.
+ * rejected by every paymaster method; the second was an "Onchain Paymaster
+ * Policy" of the correct type but the app/policy pair got stuck returning
+ * "Must be authenticated!" from Alchemy for unknown reasons (confirmed via
+ * direct curl, not a code issue — recreating the app resolved it). This is
+ * the second-generation policy on the recreated app. See PROJECT_PLAN §1d.
  */
-export const GAS_POLICY_ID_REFERENCE = "555cbdbc-7c3a-49aa-b0bb-123c9204dd5e";
+export const GAS_POLICY_ID_REFERENCE = "53d4408d-85b9-410a-bc76-fa72cc8d1a05";
 
 export const txUrl = (hash) => `${ACTIVE_NETWORK.explorer}/tx/${hash}`;
 
