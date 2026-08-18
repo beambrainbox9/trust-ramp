@@ -74,6 +74,18 @@ export async function createTrustRampSmartAccountClient(embeddedWallet) {
     }),
     paymaster: true,
     paymasterContext: { policyId: GAS_POLICY_ID_REFERENCE },
+    // viem's default fee estimation on X Layer Testnet returns a
+    // maxPriorityFeePerGas below Alchemy Rundler's required minimum
+    // (precheck: "maxPriorityFeePerGas is 2 but must be at least 100000").
+    userOperation: {
+      estimateFeesPerGas: async () => {
+        const block = await publicClient.getBlock({ blockTag: "latest" });
+        const baseFee = block.baseFeePerGas ?? 0n;
+        const maxPriorityFeePerGas = 150_000n; // safely above Rundler's 100000 wei floor
+        const maxFeePerGas = baseFee * 2n + maxPriorityFeePerGas;
+        return { maxFeePerGas, maxPriorityFeePerGas };
+      },
+    },
   });
 
   console.log(
