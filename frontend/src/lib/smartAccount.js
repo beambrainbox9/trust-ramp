@@ -30,21 +30,9 @@ import { toLightSmartAccount } from "permissionless/accounts";
 import { createSmartAccountClient } from "permissionless";
 import { xLayerTestnet } from "../chains.js";
 import { GAS_POLICY_ID_REFERENCE } from "../config/contracts.js";
+import { apiUrl } from "../config/api.js";
 
-// Alchemy's bundler URL doubles as the paymaster endpoint (Alchemy's Rundler
-// exposes the standard ERC-7677 pm_getPaymasterData/Stub methods on the same
-// URL as the bundler methods) — this is the same URL that was previously
-// ONLY entered into the Privy dashboard (see config/contracts.js comment).
-// We now read it at runtime too, since we're calling Alchemy directly.
-const ALCHEMY_BUNDLER_URL = import.meta.env.VITE_ALCHEMY_BUNDLER_URL;
-
-if (!ALCHEMY_BUNDLER_URL) {
-  console.error(
-    "[TR-SMART-ACCOUNT] VITE_ALCHEMY_BUNDLER_URL is not set. Add it to " +
-      "frontend/.env — same URL already entered into the Privy dashboard " +
-      "(https://xlayer-testnet.g.alchemy.com/v2/<ALCHEMY_API_KEY>)."
-  );
-}
+const BUNDLER_PROXY_URL = apiUrl("/api/bundler");
 
 export const publicClient = createPublicClient({
   chain: xLayerTestnet,
@@ -62,10 +50,6 @@ export async function createTrustRampSmartAccountClient(embeddedWallet) {
   if (!embeddedWallet) {
     throw new Error("createTrustRampSmartAccountClient: no embedded wallet given");
   }
-  if (!ALCHEMY_BUNDLER_URL) {
-    throw new Error("VITE_ALCHEMY_BUNDLER_URL is not configured");
-  }
-
   const provider = await embeddedWallet.getEthereumProvider();
 
   const account = await toLightSmartAccount({
@@ -81,7 +65,13 @@ export async function createTrustRampSmartAccountClient(embeddedWallet) {
   const smartAccountClient = createSmartAccountClient({
     account,
     chain: xLayerTestnet,
-    bundlerTransport: http(ALCHEMY_BUNDLER_URL, { retryCount: 3, timeout: 20_000 }),
+    bundlerTransport: http(BUNDLER_PROXY_URL, {
+      retryCount: 3,
+      timeout: 20_000,
+      fetchOptions: {
+        headers: { "X-TrustRamp-Secret": import.meta.env.VITE_API_SHARED_SECRET || "" },
+      },
+    }),
     paymaster: true,
     paymasterContext: { policyId: GAS_POLICY_ID_REFERENCE },
   });
