@@ -774,6 +774,26 @@ app.post("/api/approve-transaction", sensitiveLimiter, requireSharedSecret, asyn
 
 app.get("/api/network-info", publicLimiter, (_req, res) => res.json(X_LAYER));
 
+const ALCHEMY_BUNDLER_URL = process.env.ALCHEMY_BUNDLER_URL;
+app.post("/api/bundler", sensitiveLimiter, requireSharedSecret, async (req, res) => {
+  if (!ALCHEMY_BUNDLER_URL) {
+    console.error("ALCHEMY_BUNDLER_URL is not set — refusing bundler proxy requests.");
+    return res.status(500).json({ error: "Server misconfigured." });
+  }
+  try {
+    const upstream = await fetch(ALCHEMY_BUNDLER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    const text = await upstream.text();
+    res.status(upstream.status).type("application/json").send(text);
+  } catch (err) {
+    console.error("[bundler-proxy] upstream fetch failed:", err.message);
+    res.status(502).json({ error: "Bundler upstream request failed." });
+  }
+});
+
 // --- 5. Reputation quiz (Day 7-8) ---
 //
 // Grading is server-side; the frontend never sees a correct answer or a score.
