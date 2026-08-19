@@ -616,6 +616,16 @@ export default function App() {
 
   // Graduation status for the real-purchase gate. useQuizFlow reads
   // TrustRampReputation.getScore() once per address — a lightweight chain read.
+  //
+  // SINGLE INSTANCE, passed down to ReputationQuiz below rather than let it
+  // call useQuizFlow itself. Two independent hook instances used to exist —
+  // this one and ReputationQuiz's own — each with its own `onchain` state. A
+  // successful mint() calls refreshOnchain() on whichever instance owns the
+  // button, which was ReputationQuiz's; this instance's `graduated` (the one
+  // RealPurchaseFlow actually gates on) never got told to refresh, so the
+  // Real Purchase section stayed locked until a full reload remounted both
+  // and re-ran their independent initial reads. Confirmed live, reproduced
+  // twice. One shared instance means one refresh updates both consumers.
   const quizState = useQuizFlow(smartAccountAddress);
   const graduated = quizState.onchain.graduated;
 
@@ -731,8 +741,12 @@ export default function App() {
           {/* Sibling to PracticeFlow — reads chain state to decide whether to
               show itself. Renders nothing until the user has either done the
               practice OR already graduated on-chain. */}
-          <ReputationQuiz smartAccountAddress={smartAccountAddress} />
-          <RealPurchaseFlow smartAccountAddress={smartAccountAddress} graduated={graduated} />
+          <ReputationQuiz smartAccountAddress={smartAccountAddress} quizState={quizState} />
+          <RealPurchaseFlow
+            smartAccountAddress={smartAccountAddress}
+            graduated={graduated}
+            reputationOverall={quizState.onchain.overall}
+          />
         </main>
       )}
 

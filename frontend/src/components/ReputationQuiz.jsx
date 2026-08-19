@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPublicClient, http, parseAbi } from "viem";
-import { useQuizFlow, QUIZ_PHASE } from "../hooks/useQuizFlow.js";
+import { QUIZ_PHASE } from "../hooks/useQuizFlow.js";
 import { ACTIVE_NETWORK, txUrl } from "../config/contracts.js";
 import { usePurchaseFlow } from "../context/PurchaseFlowContext.jsx";
 
@@ -45,8 +45,11 @@ function box(extra = "") {
  * localStorage step key. If the read fails or the balance is zero, we show
  * nothing (the practice flow is what points them here).
  */
-export default function ReputationQuiz({ smartAccountAddress }) {
-  const q = useQuizFlow(smartAccountAddress);
+export default function ReputationQuiz({ smartAccountAddress, quizState }) {
+  // Owned by App.jsx, not this component — see the comment there. A mint here
+  // calls quizState.mint(), which refreshes the SAME onchain state that gates
+  // RealPurchaseFlow, so graduation unlocks it immediately, no reload needed.
+  const q = quizState;
   const { lastTx } = usePurchaseFlow();
   const [draft, setDraft] = useState("");
   const [assetBalance, setAssetBalance] = useState(null);
