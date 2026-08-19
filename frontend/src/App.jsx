@@ -14,6 +14,8 @@ import { useTrustRampSmartWallet as useSmartWallets } from "./hooks/useTrustRamp
 import ChatTutor from "./components/ChatTutor.jsx";
 import PracticeFlow from "./components/PracticeFlow.jsx";
 import ReputationQuiz from "./components/ReputationQuiz.jsx";
+import RealPurchaseFlow from "./components/RealPurchaseFlow.jsx";
+import { useQuizFlow } from "./hooks/useQuizFlow.js";
 import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
 
 // Unique build fingerprint. Used to confirm the debug panel is present in the
@@ -612,6 +614,11 @@ export default function App() {
   }, [liveAddress, authenticated]);
   const smartAccountAddress = liveAddress || stickyAddress;
 
+  // Graduation status for the real-purchase gate. useQuizFlow reads
+  // TrustRampReputation.getScore() once per address — a lightweight chain read.
+  const quizState = useQuizFlow(smartAccountAddress);
+  const graduated = quizState.onchain.graduated;
+
   return (
     <div className="min-h-screen bg-ink">
       <header className="max-w-3xl mx-auto px-6 pt-16 pb-10">
@@ -725,6 +732,7 @@ export default function App() {
               show itself. Renders nothing until the user has either done the
               practice OR already graduated on-chain. */}
           <ReputationQuiz smartAccountAddress={smartAccountAddress} />
+          <RealPurchaseFlow smartAccountAddress={smartAccountAddress} graduated={graduated} />
         </main>
       )}
 
