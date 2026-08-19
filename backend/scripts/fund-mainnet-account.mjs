@@ -10,8 +10,7 @@
 //   node backend/scripts/fund-mainnet-account.mjs 0x9aa1201b2b04E518f4bf7a82B911BF79203e9a64 10
 //
 // Env required:
-//   DEPLOYER_PRIVATE_KEY   — same deployer key already used for recordGraduation
-//                            (backend/quiz.mjs). Holds the MockUSDC mainnet supply.
+//   MAINNET_FUNDING_KEY    — deployer key that holds the MockUSDC mainnet supply.
 //   XLAYER_MAINNET_RPC     — optional, defaults to https://rpc.xlayer.tech.
 //                            Deliberately a plain JSON-RPC endpoint, not
 //                            ALCHEMY_BUNDLER_URL_MAINNET: this sends a normal
@@ -57,8 +56,8 @@ async function main() {
     fail("Amount must be greater than zero.");
   }
 
-  const deployerKey = process.env.DEPLOYER_PRIVATE_KEY;
-  if (!deployerKey) fail("DEPLOYER_PRIVATE_KEY is not set.");
+  const deployerKey = process.env.MAINNET_FUNDING_KEY;
+  if (!deployerKey) fail("MAINNET_FUNDING_KEY is not set.");
   const pk = deployerKey.startsWith("0x") ? deployerKey : `0x${deployerKey}`;
 
   const rpcUrl = process.env.XLAYER_MAINNET_RPC || "https://rpc.xlayer.tech";
