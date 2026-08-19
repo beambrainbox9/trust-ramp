@@ -13,7 +13,22 @@ function box(extra = "") {
 export default function RealPurchaseFlow({ smartAccountAddress, graduated }) {
   const r = useRealPurchase(smartAccountAddress);
 
-  if (!graduated || !smartAccountAddress) return null;
+  if (!smartAccountAddress) return null;
+
+  if (!graduated) {
+    return (
+      <section className="mt-10">
+        <h2 className="font-display text-xl text-paper mb-2">Real Purchase</h2>
+        <div className={box()}>
+          <p className="text-paper/70 text-sm">
+            Mainnet purchase unlocks once you pass the reputation quiz. Head back to the check
+            above when you're ready — there's no rush, and you can retake it as many times as you
+            like.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   const mainnetExplorerTx = (hash) => `${NET.explorer}/tx/${hash}`;
 
