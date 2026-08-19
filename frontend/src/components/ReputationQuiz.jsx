@@ -250,13 +250,30 @@ export default function ReputationQuiz({ smartAccountAddress }) {
             can then read it — that's the whole point of an on-chain reputation. If you'd rather not,
             simply don't click; nothing is minted.
           </p>
-          <button
-            onClick={q.mint}
-            disabled={q.phase === QUIZ_PHASE.MINTING}
-            className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
-          >
-            {q.phase === QUIZ_PHASE.MINTING ? "Publishing…" : "Mint my reputation score"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={q.mint}
+              disabled={q.phase === QUIZ_PHASE.MINTING}
+              className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+            >
+              {q.phase === QUIZ_PHASE.MINTING ? "Publishing…" : "Mint my reputation score"}
+            </button>
+            {!q.onchain.graduated && (
+              <button
+                onClick={q.start}
+                disabled={q.phase === QUIZ_PHASE.MINTING}
+                className="border border-paper/20 text-paper/70 font-medium px-4 py-2 rounded-lg text-sm hover:bg-paper/5 transition disabled:opacity-50"
+              >
+                Retake the check
+              </button>
+            )}
+          </div>
+          {!q.onchain.graduated && (
+            <p className="text-paper/50 text-xs mt-3">
+              Not quite where you want to be? That's normal on a first pass — retake any time, as
+              many times as you like. Only your latest attempt counts.
+            </p>
+          )}
         </div>
       )}
 
