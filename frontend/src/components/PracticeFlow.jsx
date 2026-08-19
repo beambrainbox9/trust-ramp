@@ -488,6 +488,20 @@ export default function PracticeFlow({ smartAccountAddress }) {
             Maximum you will pay: {p.fmtPayment(cost)} {PAYMENT_SYMBOL}. If the price changed, this
             fails and you keep your funds.
           </p>
+          {p.capError && (
+            <div className="mt-4 border border-guide/40 rounded-lg p-4">
+              <p className="text-guide text-sm font-medium mb-1">
+                {ACTIVE_NETWORK.key === "mainnet" ? "Spending cap" : "Server error"}
+              </p>
+              <p className="text-paper/70 text-sm">{p.capError}</p>
+              <button
+                onClick={p.clearCapError}
+                className="mt-2 text-guide text-sm underline hover:brightness-125"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {p.step === STEP.PURCHASE && (
             <button
               onClick={async () => {

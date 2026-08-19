@@ -71,6 +71,20 @@ export default function ApprovalModal({ tx, onApprove, onCancel }) {
           </div>
         </dl>
 
+        {tx.summary && (
+          <div className="mt-4 p-3 rounded-lg bg-paper/5 border border-paper/10">
+            <p className="text-sm text-paper/80 leading-relaxed">{tx.summary}</p>
+          </div>
+        )}
+
+        {tx.riskNotes && tx.riskNotes.length > 0 && (
+          <ul className="mt-3 space-y-1.5 text-xs text-paper/60 list-disc list-inside">
+            {tx.riskNotes.map((note, i) => (
+              <li key={i}>{note}</li>
+            ))}
+          </ul>
+        )}
+
         <div className="flex gap-3 mt-6">
           <button
             onClick={onCancel}
@@ -89,7 +103,7 @@ export default function ApprovalModal({ tx, onApprove, onCancel }) {
         <p className="text-paper/30 text-xs text-center mt-4">
           {ACTIVE_NETWORK.isPractice
             ? "Practice network — no real funds at risk."
-            : "This will submit a real transaction."}
+            : "This will submit a real transaction on mainnet."}
         </p>
       </div>
     </div>

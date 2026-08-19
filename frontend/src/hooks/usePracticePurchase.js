@@ -12,6 +12,7 @@ import {
   ASSET_DECIMALS,
   PAYMENT_DECIMALS,
 } from "../config/contracts.js";
+import { apiUrl } from "../config/api.js";
 
 // Day 5-6 practice purchase: approve -> buy against MockRWASale.
 //
@@ -161,6 +162,7 @@ export function usePracticePurchase(smartAccountAddress) {
   const [txHashes, setTxHashes] = useState({ faucet: null, approve: null, buy: null });
   const [txError, setTxError] = useState(null);
   const [lastFailedAction, setLastFailedAction] = useState(null); // for the Retry button
+  const [capError, setCapError] = useState(null);
 
   // Human-approval modal state. `send()` sets this before entering the retry
   // loop and awaits the user's decision. The consuming component renders
@@ -444,7 +446,7 @@ export function usePracticePurchase(smartAccountAddress) {
   // brand-new account fails, PROJECT_PLAN §1d lists the two known culprits
   // (priority-fee floor, verificationGasLimit band) with their exact signatures.
   const send = useCallback(
-    async (label, to, data, txMeta) => {
+    async (label, to, data, txMeta, mainnetGate) => {
       // Send through the client Privy RESOLVED, never the one from render — the
       // latter can still be mid-construction. If readiness hasn't landed yet we
       // await it here rather than firing early; the button is disabled in that
@@ -464,6 +466,43 @@ export function usePracticePurchase(smartAccountAddress) {
       setBusy(label);
       setTxError(null);
       setLastFailedAction(null);
+      setCapError(null);
+
+      // ==================================================================
+      // MAINNET SPENDING-CAP GATE (before the human-approval modal)
+      // ==================================================================
+      // On mainnet purchases, the server validates the amount against the
+      // $25 lifetime cap and HMAC-signs the transaction parameters. If the
+      // cap is exceeded, we surface the error and never open the modal.
+      let preparedTx = null;
+      if (mainnetGate) {
+        try {
+          const prepRes = await fetch(apiUrl("/api/prepare-transaction"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-TrustRamp-Secret": import.meta.env.VITE_API_SHARED_SECRET || "",
+            },
+            body: JSON.stringify({
+              userAddress: mainnetGate.userAddress,
+              amountUsd: mainnetGate.amountUsd,
+              network: "mainnet",
+            }),
+          });
+          const prepData = await prepRes.json();
+          if (!prepRes.ok) {
+            const msg = prepData.error || "Transaction could not be prepared.";
+            setCapError(msg);
+            setBusy(null);
+            return;
+          }
+          preparedTx = prepData.preparedTx;
+        } catch (err) {
+          setCapError("Could not reach the server to validate this transaction. Please try again.");
+          setBusy(null);
+          return;
+        }
+      }
 
       // ==================================================================
       // HUMAN-APPROVAL GATE
@@ -473,12 +512,25 @@ export function usePracticePurchase(smartAccountAddress) {
       // no UI step at all. Every transaction on this path — testnet
       // included — submits with no human click unless gated here.
       //
+      // On mainnet, the modal shows the server's plain-language summary and
+      // risk notes from prepare-transaction, not client-derived text.
+      const modalMeta = preparedTx
+        ? {
+            ...txMeta,
+            label: "Purchase asset tokens (mainnet)",
+            amount: `$${preparedTx.valueUsd.toFixed(2)} USD`,
+            summary: preparedTx.plainLanguageSummary,
+            riskNotes: preparedTx.riskNotes,
+            network: "X Layer Mainnet",
+          }
+        : txMeta;
+      //
       // This prompt sits ONCE, before the retry loop — a transient-error
       // retry never re-prompts for the same transaction.
       try {
         await new Promise((resolve, reject) => {
           approvalResolveRef.current = { resolve, reject };
-          setPendingApproval(txMeta);
+          setPendingApproval(modalMeta);
         });
       } catch {
         setBusy(null);
@@ -488,6 +540,45 @@ export function usePracticePurchase(smartAccountAddress) {
       } finally {
         setPendingApproval(null);
         approvalResolveRef.current = null;
+      }
+
+      // ==================================================================
+      // MAINNET APPROVE GATE (after the human clicked Approve)
+      // ==================================================================
+      // The server verifies the HMAC, debits the spending cap, and returns
+      // { allowed: true } only if everything checks out. The frontend uses
+      // preparedTx.to from the server response, not a client-derived address.
+      if (preparedTx) {
+        try {
+          const appRes = await fetch(apiUrl("/api/approve-transaction"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-TrustRamp-Secret": import.meta.env.VITE_API_SHARED_SECRET || "",
+            },
+            body: JSON.stringify({
+              preparedTx,
+              humanApproved: true,
+            }),
+          });
+          const appData = await appRes.json();
+          if (!appData.allowed) {
+            setCapError(appData.reason || "Transaction was not approved by the server.");
+            setBusy(null);
+            return;
+          }
+          // Use the server-verified contract address for execution.
+          to = preparedTx.to;
+          // Rebuild calldata with server-verified parameters so the amount
+          // that was cap-checked is the amount that executes.
+          if (mainnetGate.rebuildData) {
+            data = mainnetGate.rebuildData(preparedTx);
+          }
+        } catch (err) {
+          setCapError("Could not reach the server to finalize approval. Please try again.");
+          setBusy(null);
+          return;
+        }
       }
 
       // The readiness settle window above is a heuristic, not a guarantee, so
@@ -579,7 +670,7 @@ export function usePracticePurchase(smartAccountAddress) {
 
       setBusy(null);
       setTxError(lastErr?.message || lastErr?.shortMessage || String(lastErr));
-      setLastFailedAction({ label, to, data, txMeta });
+      setLastFailedAction({ label, to, data, txMeta, mainnetGate });
       throw lastErr;
     },
     [getClientForChain, refresh, emitTransaction, smartAccountAddress]
@@ -591,8 +682,8 @@ export function usePracticePurchase(smartAccountAddress) {
    *  "reload the page and start again". */
   const retryLast = useCallback(async () => {
     if (!lastFailedAction) return;
-    const { label, to, data, txMeta } = lastFailedAction;
-    return send(label, to, data, txMeta);
+    const { label, to, data, txMeta, mainnetGate: gate } = lastFailedAction;
+    return send(label, to, data, txMeta, gate);
   }, [lastFailedAction, send]);
 
   const claimFaucet = useCallback(
@@ -644,6 +735,25 @@ export function usePracticePurchase(smartAccountAddress) {
 
   const buy = useCallback(
     async (tokenAmountWei, maxPaymentIn) => {
+      const isMainnet = ACTIVE_NETWORK.key === "mainnet";
+      const gate = isMainnet
+        ? {
+            userAddress: smartAccountAddress,
+            amountUsd: Number(formatUnits(maxPaymentIn, PAYMENT_DECIMALS)),
+            rebuildData: (ptx) => {
+              const serverMaxPayment = parseUnits(
+                (ptx.valueCents / 100).toFixed(PAYMENT_DECIMALS),
+                PAYMENT_DECIMALS
+              );
+              return encodeFunctionData({
+                abi: SALE_ABI,
+                functionName: "buy",
+                args: [tokenAmountWei, serverMaxPayment],
+              });
+            },
+          }
+        : undefined;
+
       return send(
         "buy",
         contracts.sale,
@@ -658,10 +768,11 @@ export function usePracticePurchase(smartAccountAddress) {
           spender: contracts.sale,
           token: "DEMO-xTBILL",
           network: ACTIVE_NETWORK.label,
-        }
+        },
+        gate
       );
     },
-    [send]
+    [send, smartAccountAddress]
   );
 
   const approvePending = useCallback(() => {
@@ -679,6 +790,8 @@ export function usePracticePurchase(smartAccountAddress) {
     busy,
     txHashes,
     txError,
+    capError,
+    clearCapError: useCallback(() => setCapError(null), []),
     ready,
     restartFlow,
     readyPhase: readyState.phase,
@@ -693,7 +806,6 @@ export function usePracticePurchase(smartAccountAddress) {
     pendingApproval,
     approvePending,
     cancelPending,
-    // Formatting helpers so components never guess at decimals.
     fmtPayment: (v) => formatUnits(v ?? 0n, PAYMENT_DECIMALS),
     fmtAsset: (v) => formatUnits(v ?? 0n, ASSET_DECIMALS),
     parseAsset: (v) => parseUnits(String(v), ASSET_DECIMALS),

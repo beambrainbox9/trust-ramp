@@ -752,8 +752,7 @@ app.post("/api/approve-transaction", sensitiveLimiter, requireSharedSecret, asyn
         status: 200,
         body: {
           allowed: true,
-          status: "stub_not_yet_executing",
-          note: "Execution wiring lands Day 11-12 per the build timeline. This endpoint currently only validates and records the approval gate.",
+          preparedTx,
           totalSpentUSD: usd(storage.userApprovals[address].totalSpentCents),
         },
       };
