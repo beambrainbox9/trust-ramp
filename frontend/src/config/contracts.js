@@ -67,16 +67,21 @@ export const PAYMENT_SYMBOL = "DEMO-USDC";
 /**
  * Alchemy Gas Manager policy that sponsors gas for UserOperations.
  *
- * Recorded here for reference only — Privy reads the policy from its own
- * dashboard, and passing it from code would override that (see main.jsx). The
- * first policy was the wrong TYPE ("Bundler Sponsored Operations") and was
- * rejected by every paymaster method; the second was an "Onchain Paymaster
- * Policy" of the correct type but the app/policy pair got stuck returning
- * "Must be authenticated!" from Alchemy for unknown reasons (confirmed via
- * direct curl, not a code issue — recreating the app resolved it). This is
- * the second-generation policy on the recreated app. See PROJECT_PLAN §1d.
+ * NOTE: despite the name, this is NOT reference-only — smartAccount.js's
+ * direct permissionless.js bundler client (added 2026-08-17 to bypass
+ * Privy's SIWE linking) sends this value as the live `paymasterContext`
+ * policyId, so a stale value here breaks the testnet flow with Alchemy's
+ * "Policy not found". main.jsx's Privy-SDK path still reads its own policy
+ * from the Privy dashboard, unaffected by this constant. The first policy
+ * was the wrong TYPE
+ * ("Bundler Sponsored Operations") and was rejected by every paymaster
+ * method; the second was an "Onchain Paymaster Policy" of the correct type
+ * but the app/policy pair got stuck returning "Must be authenticated!" from
+ * Alchemy for unknown reasons (confirmed via direct curl, not a code issue
+ * — recreating the app resolved it). This is the third-generation policy
+ * on the recreated app. See PROJECT_PLAN §1d.
  */
-export const GAS_POLICY_ID_REFERENCE = "53d4408d-85b9-410a-bc76-fa72cc8d1a05";
+export const GAS_POLICY_ID_REFERENCE = "555cbdbc-7c3a-49aa-b0bb-123c9204dd5e";
 
 export const txUrl = (hash) => `${ACTIVE_NETWORK.explorer}/tx/${hash}`;
 
