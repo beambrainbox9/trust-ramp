@@ -57,6 +57,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Anthropic from "@anthropic-ai/sdk";
 import { createQuizHandlers } from "./quiz.mjs";
+import { createPublicClient, createWalletClient, http as viemHttp, parseAbi } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 dotenv.config();
 
@@ -769,6 +771,199 @@ app.post("/api/approve-transaction", sensitiveLimiter, requireSharedSecret, asyn
   }
 
   res.status(result.status).json(result.body);
+});
+
+// --- Mainnet DEMO-USDC auto-funding, gated at quiz graduation ---
+//
+// New users get 20 DEMO-USDC (20000000 base units, 6 decimals) from the
+// deployer wallet the first time they reach the real-purchase flow after
+// graduating the quiz — gated at graduation rather than signup, per
+// PROJECT_PLAN's "earn it" framing, and because the deployer-held supply is
+// finite and funding everyone at signup would let it be drained by anyone
+// who never touches the product.
+//
+// Persistence reuses the exact fail-closed pattern as the $25 approvals
+// store above: a separate on-disk JSON file (so a bug in one store can't
+// corrupt the other), atomic temp-file+rename writes, and a refusal to
+// serve requests when the file is missing/corrupt rather than silently
+// treating that as "never funded" — that failure mode is exactly what let
+// the $25 cap be bypassed before (see the P0-2 note at the top of this
+// file), and it would let this be replayed to re-drain the deployer wallet.
+const FUNDING_FILE = path.join(DATA_DIR, "mainnet-funding.json");
+if (!fs.existsSync(FUNDING_FILE)) {
+  fs.writeFileSync(FUNDING_FILE, JSON.stringify({ fundedAddresses: {} }, null, 2));
+}
+
+class FundingStoreUnavailable extends Error {}
+
+function getFundingData() {
+  let raw;
+  try {
+    raw = fs.readFileSync(FUNDING_FILE, "utf8");
+  } catch (err) {
+    throw new FundingStoreUnavailable(`cannot read funding file: ${err.message}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new FundingStoreUnavailable(`funding file is corrupt: ${err.message}`);
+  }
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    typeof parsed.fundedAddresses !== "object" ||
+    parsed.fundedAddresses === null
+  ) {
+    throw new FundingStoreUnavailable("funding file has an unexpected shape");
+  }
+  return parsed;
+}
+
+function saveFundingData(data) {
+  const tmp = `${FUNDING_FILE}.${process.pid}.tmp`;
+  const fd = fs.openSync(tmp, "w");
+  try {
+    fs.writeFileSync(fd, JSON.stringify(data, null, 2));
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tmp, FUNDING_FILE);
+}
+
+// Same MockUSDC deployment the practice/real flows already use on mainnet
+// (chain 196) — this transfer logic is lifted from
+// backend/scripts/fund-mainnet-account.mjs, which is proven working.
+const MAINNET_CHAIN_ID = 196;
+const MAINNET_USDC_ADDRESS = "0x096970D0c7Aa0Ac70Afe6e8c2373a07bF03cB12D";
+const MAINNET_USDC_ABI = parseAbi([
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+]);
+const FUNDING_AMOUNT_BASE_UNITS = 20000000n; // 20.000000 DEMO-USDC, 6 decimals
+const MAINNET_DEPLOYER_ADDRESS = "0xF1983fD880A9e3888D12d4a1aA9aCAcfAe5837ca";
+// If a send never finishes (crash, hung RPC), let a later request retry
+// instead of leaving the address stuck "pending" forever.
+const FUNDING_PENDING_TIMEOUT_MS = 2 * 60 * 1000;
+
+app.post("/api/fund-mainnet-account", sensitiveLimiter, requireSharedSecret, async (req, res) => {
+  const { address } = req.body || {};
+  if (!isValidAddress(address)) {
+    return res.status(400).json({ error: "Missing or invalid address." });
+  }
+  const key = address.toLowerCase();
+
+  const deployerKey = process.env.MAINNET_FUNDING_KEY;
+  if (!deployerKey) {
+    console.error("MAINNET_FUNDING_KEY is not set — refusing mainnet auto-funding.");
+    return res.status(500).json({ error: "Server misconfigured." });
+  }
+
+  // Claim the funding slot inside the same write-lock the $25 approvals
+  // store uses, so two concurrent or replayed calls for the same address
+  // can't both pass the "not yet funded" check and both fire a transfer.
+  let claim;
+  try {
+    claim = await withWriteLock(() => {
+      const storage = getFundingData(); // throws FundingStoreUnavailable — fails closed
+      const record = storage.fundedAddresses[key];
+
+      if (record?.status === "sent") {
+        return { alreadyFunded: true, record };
+      }
+      if (record?.status === "pending" && Date.now() - record.startedAt < FUNDING_PENDING_TIMEOUT_MS) {
+        return { inProgress: true };
+      }
+
+      storage.fundedAddresses[key] = { status: "pending", startedAt: Date.now() };
+      saveFundingData(storage);
+      return { claimed: true };
+    });
+  } catch (err) {
+    if (err instanceof FundingStoreUnavailable) {
+      console.error("Funding store unavailable — refusing to fund:", err.message);
+      return res.status(503).json({ error: "Cannot verify funding status right now. Please try again shortly." });
+    }
+    throw err;
+  }
+
+  if (claim.alreadyFunded) {
+    return res.json({ funded: true, alreadyFunded: true, txHash: claim.record.txHash || null });
+  }
+  if (claim.inProgress) {
+    return res
+      .status(409)
+      .json({ error: "Funding is already in progress for this address. Please try again shortly." });
+  }
+
+  // --- Send, outside the write lock: identical logic to
+  // backend/scripts/fund-mainnet-account.mjs. ---
+  const pk = deployerKey.startsWith("0x") ? deployerKey : `0x${deployerKey}`;
+  const rpcUrl = process.env.XLAYER_MAINNET_RPC || X_LAYER.mainnet.rpcUrl;
+
+  const releaseClaim = async () => {
+    await withWriteLock(() => {
+      let storage;
+      try {
+        storage = getFundingData();
+      } catch {
+        return; // can't record the failure; the pending timeout will allow a retry anyway
+      }
+      delete storage.fundedAddresses[key];
+      saveFundingData(storage);
+    });
+  };
+
+  try {
+    const account = privateKeyToAccount(pk);
+    if (account.address.toLowerCase() !== MAINNET_DEPLOYER_ADDRESS.toLowerCase()) {
+      throw new Error("MAINNET_FUNDING_KEY does not match the expected deployer address.");
+    }
+
+    const publicClient = createPublicClient({ transport: viemHttp(rpcUrl) });
+    const walletClient = createWalletClient({ account, transport: viemHttp(rpcUrl) });
+
+    const chainId = await publicClient.getChainId();
+    if (chainId !== MAINNET_CHAIN_ID) {
+      throw new Error(`RPC at ${rpcUrl} reports chain ${chainId}, expected X Layer mainnet (${MAINNET_CHAIN_ID}).`);
+    }
+
+    const deployerBalance = await publicClient.readContract({
+      address: MAINNET_USDC_ADDRESS,
+      abi: MAINNET_USDC_ABI,
+      functionName: "balanceOf",
+      args: [account.address],
+    });
+    if (deployerBalance < FUNDING_AMOUNT_BASE_UNITS) {
+      throw new Error("Deployer wallet does not hold enough DEMO-USDC to fund this account.");
+    }
+
+    const hash = await walletClient.writeContract({
+      address: MAINNET_USDC_ADDRESS,
+      abi: MAINNET_USDC_ABI,
+      functionName: "transfer",
+      args: [address, FUNDING_AMOUNT_BASE_UNITS],
+      chain: null, // account carries chain identity for viem's wallet client
+    });
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+    if (receipt.status !== "success") {
+      throw new Error(`Funding transaction reverted on-chain (${hash}).`);
+    }
+
+    await withWriteLock(() => {
+      const storage = getFundingData();
+      storage.fundedAddresses[key] = { status: "sent", txHash: hash, fundedAt: Date.now() };
+      saveFundingData(storage);
+    });
+
+    res.json({ funded: true, alreadyFunded: false, txHash: hash });
+  } catch (err) {
+    console.error("[fund-mainnet-account] transfer failed:", err?.message || err);
+    await releaseClaim();
+    res.status(502).json({ error: "Could not fund this account right now. Please try again shortly." });
+  }
 });
 
 app.get("/api/network-info", publicLimiter, (_req, res) => res.json(X_LAYER));
