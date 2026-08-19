@@ -209,7 +209,7 @@ const VALID_NETWORKS = new Set(["mainnet", "testnet"]);
 // produced a signed, valid-looking transaction pointing at nothing.
 const SALE_CONTRACT = {
   testnet: "0x6466218A596e7FCB933ED5a02Fe5204dDa46435e",
-  mainnet: null,
+  mainnet: "0x0825744ef3303bd90335758D5477AAEc557ae303",
 };
 
 // The ERC-20 the sale accepts as payment (DEMO-USDC, 6 decimals). The purchase
