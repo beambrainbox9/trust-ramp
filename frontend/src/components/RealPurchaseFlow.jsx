@@ -11,7 +11,7 @@ function box(extra = "") {
   return `border border-paper/10 rounded-lg p-5 mt-6 ${extra}`;
 }
 
-export default function RealPurchaseFlow({ smartAccountAddress, graduated }) {
+export default function RealPurchaseFlow({ smartAccountAddress, graduated, reputationOverall }) {
   const r = useRealPurchase(smartAccountAddress);
 
   // Auto-fund with DEMO-USDC the first time this address reaches the real
@@ -234,16 +234,19 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated }) {
 
       {/* Step: PURCHASE_DONE */}
       {r.step === REAL_STEP.PURCHASE_DONE && (
-        <div className={box("border-safe/30")}>
-          <p className="text-safe text-sm font-medium mb-2">Purchase complete</p>
-          <p className="text-paper/70 text-sm mb-3">
-            You now hold {r.fmtAsset(r.assetBalance)} xTBILL on {NET.label}.
-            The approval has been fully spent — no standing permission remains.
-          </p>
-          {r.txHashes.buy && (
-            <TxLink hash={r.txHashes.buy} label="Purchase tx" explorer={NET.explorer} />
-          )}
-        </div>
+        <>
+          <div className={box("border-safe/30")}>
+            <p className="text-safe text-sm font-medium mb-2">Purchase complete</p>
+            <p className="text-paper/70 text-sm mb-3">
+              You now hold {r.fmtAsset(r.assetBalance)} xTBILL on {NET.label}.
+              The approval has been fully spent — no standing permission remains.
+            </p>
+            {r.txHashes.buy && (
+              <TxLink hash={r.txHashes.buy} label="Purchase tx" explorer={NET.explorer} />
+            )}
+          </div>
+          <PurchaseSummary r={r} reputationOverall={reputationOverall} />
+        </>
       )}
 
       <ApprovalModal
@@ -336,6 +339,48 @@ function PurchaseStep({ r }) {
       >
         {r.busy === "buy" ? "Purchasing…" : "Buy now"}
       </button>
+    </div>
+  );
+}
+
+// Recap shown once PURCHASE_DONE lands. Same box()/TxLink patterns as the
+// rest of the flow (Approval confirmed, Purchase complete) rather than new
+// components, so it reads as one more card in the same sequence, not a
+// bolted-on report. Tone matches the tutor's — warm but credible, no
+// overstating — see TUTOR_SYSTEM_PROMPT in backend/server.js.
+function PurchaseSummary({ r, reputationOverall }) {
+  const hasScore = Number.isFinite(reputationOverall) && reputationOverall > 0;
+  return (
+    <div className="space-y-4">
+      <div className={box()}>
+        <h4 className="text-paper font-medium text-sm mb-2">What just happened</h4>
+        <p className="text-paper/70 text-sm leading-relaxed mb-3">
+          Two steps, each one you approved yourself. First you gave the sale contract
+          permission to move exactly the payment amount — no more. Then, with that
+          permission in place, you sent the purchase itself. Both are real, confirmed
+          transactions on {NET.label}, not a simulation of one.
+        </p>
+        <div className="space-y-1">
+          {r.txHashes.approve && (
+            <TxLink hash={r.txHashes.approve} label="1. Approval tx" explorer={NET.explorer} />
+          )}
+          {r.txHashes.buy && (
+            <TxLink hash={r.txHashes.buy} label="2. Purchase tx" explorer={NET.explorer} />
+          )}
+        </div>
+      </div>
+      <div className={box()}>
+        <h4 className="text-paper font-medium text-sm mb-2">Why this matters</h4>
+        <p className="text-paper/70 text-sm leading-relaxed">
+          {hasScore
+            ? `Your on-chain reputation score (${reputationOverall}/100) is what unlocked this — `
+            : "Your on-chain reputation score is what unlocked this — "}
+          it's a record that you understood the mechanics before any real money moved. And
+          this wasn't a demo: it's a genuine, independently verifiable mainnet transaction.
+          Anyone can open the links above and see exactly what happened — you don't need to
+          take TrustRamp's word for it.
+        </p>
+      </div>
     </div>
   );
 }
