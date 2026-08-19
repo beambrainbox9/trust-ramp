@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRealPurchase, REAL_STEP } from "../hooks/useRealPurchase.js";
 import { NETWORKS, ASSET_DECIMALS, PAYMENT_DECIMALS } from "../config/contracts.js";
+import { apiUrl } from "../config/api.js";
 import ApprovalModal from "./ApprovalModal.jsx";
 
 const NET = NETWORKS.mainnet;
@@ -12,6 +13,51 @@ function box(extra = "") {
 
 export default function RealPurchaseFlow({ smartAccountAddress, graduated }) {
   const r = useRealPurchase(smartAccountAddress);
+
+  // Auto-fund with DEMO-USDC the first time this address reaches the real
+  // purchase flow post-graduation, before the purchase UI is shown — so by
+  // the time the user clicks through, the funds are already there. Fires
+  // once per address (fundedForRef), not on every re-render/reload, since
+  // the backend's own on-disk store is what actually prevents re-funding —
+  // this ref just avoids spamming it with redundant calls.
+  const [fundingSettled, setFundingSettled] = useState(false);
+  const [showFundingLoading, setShowFundingLoading] = useState(false);
+  const fundedForRef = useRef(null);
+
+  useEffect(() => {
+    if (!smartAccountAddress || !graduated) return;
+    if (fundedForRef.current === smartAccountAddress) return;
+    fundedForRef.current = smartAccountAddress;
+
+    let cancelled = false;
+    // Only show the loading state if this takes more than an instant, so a
+    // fast response doesn't produce a UI flash.
+    const loadingTimer = setTimeout(() => {
+      if (!cancelled) setShowFundingLoading(true);
+    }, 300);
+
+    fetch(apiUrl("/api/fund-mainnet-account"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-TrustRamp-Secret": import.meta.env.VITE_API_SHARED_SECRET || "",
+      },
+      body: JSON.stringify({ address: smartAccountAddress }),
+    })
+      .catch(() => null) // non-fatal — proceed to the purchase UI either way
+      .finally(() => {
+        if (!cancelled) {
+          clearTimeout(loadingTimer);
+          setShowFundingLoading(false);
+          setFundingSettled(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(loadingTimer);
+    };
+  }, [smartAccountAddress, graduated]);
 
   if (!smartAccountAddress) return null;
 
@@ -26,6 +72,19 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated }) {
             like.
           </p>
         </div>
+      </section>
+    );
+  }
+
+  if (!fundingSettled) {
+    return (
+      <section className="mt-10">
+        <h2 className="font-display text-xl text-paper mb-2">Real Purchase</h2>
+        {showFundingLoading && (
+          <div className={box()}>
+            <p className="text-paper/60 text-sm">Setting up your account…</p>
+          </div>
+        )}
       </section>
     );
   }
