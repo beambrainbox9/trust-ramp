@@ -317,7 +317,16 @@ export function useQuizFlow(smartAccountAddress) {
         setError(err.message || String(err));
         // Stay in the current phase so the user can retry — a network blip on
         // an intermediate answer must not lose the earlier ones.
-        if (phase === QUIZ_PHASE.GRADING) setPhase(QUIZ_PHASE.ANSWERING);
+        //
+        // Functional update deliberately: `phase` in this closure is whatever
+        // it was when submitAnswer was memoized (ANSWERING, since that's the
+        // render the click came from) — setPhase(GRADING) a few lines up only
+        // SCHEDULES a change, it doesn't update this binding. Comparing
+        // against the closed-over `phase` here meant `phase === GRADING` was
+        // never true, so a failed /api/quiz/complete left the UI stuck on
+        // "grading…" with no way back until a reload discarded the in-flight
+        // GRADING phase and restored ANSWERING from the last-saved snapshot.
+        setPhase((p) => (p === QUIZ_PHASE.GRADING ? QUIZ_PHASE.ANSWERING : p));
       } finally {
         setPendingSubmit(false);
       }

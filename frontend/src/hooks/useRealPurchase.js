@@ -29,11 +29,25 @@ export const REAL_STEP = {
   PURCHASE_DONE: "purchase_done",
 };
 
+// Same pattern as usePracticePurchase's trustramp.practicestep.v1: without
+// this, a user who completed a REAL mainnet purchase (approve + buy both
+// confirmed) reloaded straight back to "Begin real purchase" — the step was
+// pure in-memory state with no persistence and no chain-derived fallback.
+const STEP_STORAGE_KEY = "trustramp.realstep.v1";
+
 export function useRealPurchase(smartAccountAddress) {
   const { wallets, ready: walletsReady } = useWallets();
   const { emitTransaction } = usePurchaseFlow();
 
   const [step, setStep] = useState(REAL_STEP.IDLE);
+  const stepLoadedForRef = useRef(null);
+  // Same two-ref dance as usePracticePurchase: gates the write effect until
+  // restore has run, AND until `step` has actually caught up to the restore
+  // target — setStep() only schedules an update, so without the second guard
+  // the write effect's first pass (still holding the old `step` in its
+  // closure) would persist the stale default over the just-restored value.
+  const stepRestoredRef = useRef(false);
+  const restoreTargetRef = useRef(null);
   const [busy, setBusy] = useState(null);
   const [txHashes, setTxHashes] = useState({ approve: null, buy: null });
   const [txError, setTxError] = useState(null);
@@ -144,6 +158,54 @@ export function useRealPurchase(smartAccountAddress) {
   }, [smartAccountAddress]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  /**
+   * Where the CHAIN says this address got to on a REAL mainnet purchase.
+   * Same conservative posture as usePracticePurchase's deriveStepFromChain —
+   * it can only infer positions that leave on-chain evidence, so it's correct
+   * on a fresh browser/device with no localStorage for this address.
+   */
+  const deriveStepFromChain = useCallback(() => {
+    if (state.assetBalance > 0n) return REAL_STEP.PURCHASE_DONE;
+    if (state.allowance > 0n) return REAL_STEP.PURCHASE;
+    return REAL_STEP.IDLE;
+  }, [state.assetBalance, state.allowance]);
+
+  // Restore once the first chain read lands, same ordering as
+  // usePracticePurchase — running before that would derive against zeroed
+  // placeholder state and always yield IDLE. localStorage is authoritative
+  // when present (same-device reload); the chain read is only the fallback
+  // for a new browser, cleared storage, or another device.
+  useEffect(() => {
+    if (!smartAccountAddress) return;
+    if (stepLoadedForRef.current === smartAccountAddress) return;
+    if (state.loading) return;
+    stepLoadedForRef.current = smartAccountAddress;
+    try {
+      const saved = window.localStorage.getItem(`${STEP_STORAGE_KEY}:${smartAccountAddress}`);
+      const target =
+        saved && Object.values(REAL_STEP).includes(saved) ? saved : deriveStepFromChain();
+      restoreTargetRef.current = target;
+      setStep((current) => (current === REAL_STEP.IDLE ? target : current));
+    } catch {
+      /* storage unavailable — start from the beginning, no user-visible failure */
+    } finally {
+      stepRestoredRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartAccountAddress, state.loading, deriveStepFromChain]);
+
+  useEffect(() => {
+    if (!smartAccountAddress) return;
+    if (!stepRestoredRef.current) return; // never write before restoring
+    if (restoreTargetRef.current !== null && step !== restoreTargetRef.current) return;
+    restoreTargetRef.current = null;
+    try {
+      window.localStorage.setItem(`${STEP_STORAGE_KEY}:${smartAccountAddress}`, step);
+    } catch {
+      /* non-fatal */
+    }
+  }, [step, smartAccountAddress]);
 
   const quote = useCallback(async (tokenAmountWei) => {
     return publicClient.readContract({
