@@ -50,12 +50,12 @@ function Narration({ text, loading, error, onRetry }) {
   }
   if (!text) return null;
   return (
-    <div className="text-sm text-paper/80 leading-relaxed space-y-3">
+    <div className="text-sm text-paper/80 leading-relaxed space-y-3 break-words">
       {text
         .split(/\n\s*\n/)
         .filter(Boolean)
         .map((para, i) => (
-          <p key={i}>{para}</p>
+          <p key={i} className="break-words">{para}</p>
         ))}
     </div>
   );
