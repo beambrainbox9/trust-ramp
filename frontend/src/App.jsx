@@ -61,12 +61,18 @@ function hasLikelyReturningUser() {
 function RampRail({ activeStep = 0 }) {
   const steps = ["Learn", "Practice (testnet)", "Real purchase (approved)", "Reputation minted"];
   return (
-    <div className="flex items-end gap-3 sm:gap-6" aria-label="Onboarding progress">
+    <div className="flex items-end gap-1 sm:gap-2" aria-label="Onboarding progress">
       {steps.map((label, i) => (
-        <div key={label} className="flex flex-col items-center" style={{ marginBottom: i * 10 }}>
+        <div key={label} className="flex flex-col items-center flex-1" style={{ marginBottom: i * 10 }}>
+          {/* Connecting line (not on first step) */}
+          <div className="flex items-center w-full mb-2">
+            {i > 0 && (
+              <div className={`h-px flex-1 ${i <= activeStep ? "bg-guide/40" : "bg-surfaceRaised"}`} />
+            )}
+          </div>
           <div
-            className={`h-2 w-10 sm:w-16 rounded-full ${
-              i <= activeStep ? "bg-guide" : "bg-surfaceRaised"
+            className={`h-2.5 w-full max-w-[4rem] sm:max-w-[5rem] rounded-full transition-all duration-300 ${
+              i <= activeStep ? "bg-guide ramp-pill-active" : "bg-surfaceRaised"
             }`}
           />
           <span className="mt-2 text-[10px] sm:text-xs font-data text-paper/60 text-center max-w-[70px] sm:max-w-none">
@@ -630,9 +636,12 @@ export default function App() {
   const graduated = quizState.onchain.graduated;
 
   return (
-    <div className="min-h-screen bg-ink">
-      <header className="max-w-3xl mx-auto px-6 pt-16 pb-10">
-        <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-ink relative">
+      {/* Subtle background texture */}
+      <div className="absolute inset-0 dot-pattern pointer-events-none" />
+
+      <header className="relative max-w-3xl mx-auto px-6 pt-16 pb-10">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-paper/8">
           <div className="flex items-center gap-2">
             <img src="/brand/logo-mark-light.svg" alt="" className="h-5 w-5" aria-hidden="true" />
             <p className="font-data text-xs tracking-widest text-guide uppercase">
@@ -741,7 +750,7 @@ export default function App() {
       </header>
 
       {authenticated && (
-        <main className="max-w-3xl mx-auto px-6 pb-16">
+        <main className="relative max-w-3xl mx-auto px-6 pb-16">
           <ChatTutor walletAddress={smartAccountAddress || user?.wallet?.address} />
           {/* Practice purchase needs the SMART account specifically — the
               embedded signer can't hold the tokens or be the buyer. */}
@@ -758,7 +767,7 @@ export default function App() {
         </main>
       )}
 
-      <footer className="max-w-3xl mx-auto px-6 pb-10 space-y-4">
+      <footer className="relative max-w-3xl mx-auto px-6 pb-10 pt-8 space-y-4 border-t border-paper/8 mt-8">
         <NetworkBadge />
         <p className="text-paper/40 text-xs">
           The demo tokenized asset in this app is self-issued for the hackathon —

@@ -9,23 +9,33 @@ export default function About() {
       <SiteHeader />
 
       {/* --- Hero --- */}
-      <section className="mx-auto max-w-4xl px-6 pt-16 pb-16 sm:pt-24">
-        <Reveal>
-          <h1 className="font-display text-4xl leading-tight text-paper sm:text-5xl">
-            We built TrustRamp because the crypto industry keeps blaming users for a problem it
-            designed.
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-paper/70 sm:text-lg">
-            Nobody wakes up wanting to lose money on their first transaction. They just
-            weren&apos;t given anything better than &quot;good luck.&quot;
-          </p>
-        </Reveal>
+      <section className="relative overflow-hidden">
+        {/* Gradient glow */}
+        <div className="gradient-glow -top-40 -right-40 sm:right-10 absolute" />
+        <div className="absolute inset-0 dot-pattern" />
+
+        <div className="relative mx-auto max-w-4xl px-6 pt-16 pb-16 sm:pt-24">
+          <Reveal>
+            <span className="section-label">About TrustRamp</span>
+            <h1 className="font-display text-4xl leading-tight text-paper sm:text-5xl">
+              We built TrustRamp because the crypto industry keeps blaming users for a problem it
+              designed.
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-paper/70 sm:text-lg">
+              Nobody wakes up wanting to lose money on their first transaction. They just
+              weren&apos;t given anything better than &quot;good luck.&quot;
+            </p>
+          </Reveal>
+        </div>
       </section>
 
-      {/* --- What this isn't — kept high per the copy's own build notes --- */}
-      <section className="border-t border-paper/10 bg-surface/40">
+      <div className="section-divider" />
+
+      {/* --- What this isn't --- */}
+      <section className="bg-surface/40">
         <div className="mx-auto max-w-3xl px-6 py-16">
           <Reveal>
+            <span className="section-label">What this isn&apos;t</span>
             <h2 className="font-display text-2xl text-paper sm:text-3xl">
               We&apos;d rather tell you the truth than sound impressive.
             </h2>
@@ -44,10 +54,25 @@ export default function About() {
         </div>
       </section>
 
+      <div className="section-divider" />
+
       {/* --- The problem --- */}
-      <section className="border-t border-paper/10">
-        <div className="mx-auto max-w-3xl px-6 py-16">
+      <section className="relative overflow-hidden">
+        {/* Decorative element */}
+        <svg
+          viewBox="0 0 200 200"
+          fill="none"
+          className="absolute -left-16 top-12 w-48 opacity-[0.03]"
+          aria-hidden="true"
+        >
+          <circle cx="100" cy="100" r="80" stroke="#F2661C" strokeWidth="3" />
+          <circle cx="100" cy="100" r="50" stroke="#F2661C" strokeWidth="2" />
+          <circle cx="100" cy="100" r="20" stroke="#F2661C" strokeWidth="1.5" />
+        </svg>
+
+        <div className="relative mx-auto max-w-3xl px-6 py-16">
           <Reveal>
+            <span className="section-label">The problem</span>
             <h2 className="font-display text-2xl text-paper sm:text-3xl">
               Crypto doesn&apos;t have a trust problem. It has a first-time problem.
             </h2>
@@ -65,10 +90,21 @@ export default function About() {
               are used with any regularity. That gap isn&apos;t a lack of interest. It&apos;s a
               lack of anywhere safe to learn. Every existing &quot;solution&quot; treats this as a
               content problem — write an article, record a video, publish a glossary. But you
-              don&apos;t learn to drive by reading about driving. You learn by sitting in the car,
-              in a parking lot, with someone next to you, before anyone lets you near a highway.
+              don&apos;t learn to drive by reading about driving.
+            </p>
+
+            {/* Pull-quote for the parking lot metaphor */}
+            <blockquote className="mt-8 border-l-2 border-guide/40 pl-6 py-2">
+              <p className="font-display text-xl text-paper/90 sm:text-2xl leading-snug">
+                You learn by sitting in the car, in a parking lot, with someone next to you, before
+                anyone lets you near a highway.
+              </p>
+            </blockquote>
+
+            <p className="mt-6 text-base leading-relaxed text-paper/70 sm:text-lg">
               Nobody had built the parking lot. So we did.
             </p>
+
             <p className="mt-6 text-xs text-paper/35">
               (Sources: BIS Working Paper No. 1049, 2022; Chainalysis 2025 Crypto Crime Report;
               Blockchain-Ads User Acquisition Trends Report 2026; a16z State of Crypto 2024;
@@ -78,18 +114,26 @@ export default function About() {
         </div>
       </section>
 
+      <div className="section-divider" />
+
       {/* --- What we're building toward --- */}
-      <section className="border-t border-paper/10 bg-surface/40">
+      <section className="bg-surface/40">
         <div className="mx-auto max-w-3xl px-6 py-16">
           <Reveal>
+            <span className="section-label">What we&apos;re building toward</span>
             <h2 className="font-display text-2xl text-paper sm:text-3xl">
               Understanding you can prove, before money you can lose.
             </h2>
-            <div className="mt-6 space-y-5 text-base leading-relaxed text-paper/70 sm:text-lg">
-              <p>
+
+            {/* Mission highlight */}
+            <div className="mt-8 rounded-xl border border-guide/15 bg-guide/[0.03] p-6">
+              <p className="text-base leading-relaxed text-paper/80 sm:text-lg">
                 Our mission is small and specific: make sure nobody&apos;s first real crypto
                 transaction is also their first real crypto mistake.
               </p>
+            </div>
+
+            <div className="mt-6 space-y-5 text-base leading-relaxed text-paper/70 sm:text-lg">
               <p>
                 Our vision is bigger. We think &quot;I understand how this works&quot; should be
                 something you can actually demonstrate — not a box you check, not a certificate
@@ -124,10 +168,13 @@ export default function About() {
         </div>
       </section>
 
+      <div className="section-divider" />
+
       {/* --- Why this, why now --- */}
-      <section className="border-t border-paper/10">
+      <section>
         <div className="mx-auto max-w-3xl px-6 py-16">
           <Reveal>
+            <span className="section-label">Why this, why now</span>
             <h2 className="font-display text-2xl text-paper sm:text-3xl">
               The tools to do this properly finally exist.
             </h2>
@@ -147,9 +194,13 @@ export default function About() {
         </div>
       </section>
 
+      <div className="section-divider" />
+
       {/* --- Closing --- */}
-      <section className="border-t border-paper/10 bg-surface/40">
-        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
+      <section className="relative overflow-hidden bg-surface/40">
+        <div className="absolute inset-0 bg-gradient-to-t from-guide/[0.04] to-transparent pointer-events-none" />
+
+        <div className="relative mx-auto max-w-3xl px-6 py-20 text-center">
           <Reveal>
             <h2 className="font-display text-3xl text-paper sm:text-4xl">
               Come practice before you play for real.
@@ -160,7 +211,7 @@ export default function About() {
               own hands, that you actually understood what you were doing.
             </p>
             <div className="mt-8 flex justify-center">
-              <Link to="/app" className="btn-primary">
+              <Link to="/app" className="btn-primary text-base !px-8 !py-4">
                 Try TrustRamp
               </Link>
             </div>
