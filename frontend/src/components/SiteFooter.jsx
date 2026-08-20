@@ -29,7 +29,7 @@ export default function SiteFooter() {
                 </svg>
               </a>
               <a
-                href="https://twitter.com"
+                href="https://twitter.com/trustramp_ai"
                 target="_blank"
                 rel="noreferrer"
                 className="text-paper/40 hover:text-guide transition"

@@ -16,6 +16,7 @@ import PracticeFlow from "./components/PracticeFlow.jsx";
 import ReputationQuiz from "./components/ReputationQuiz.jsx";
 import RealPurchaseFlow from "./components/RealPurchaseFlow.jsx";
 import { useQuizFlow } from "./hooks/useQuizFlow.js";
+import { useRealPurchase, REAL_STEP } from "./hooks/useRealPurchase.js";
 import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
 import { Link } from "./router.jsx";
 import NetworkBadge from "./components/NetworkBadge.jsx";
@@ -60,26 +61,34 @@ function hasLikelyReturningUser() {
 // it doubles as a status indicator once we wire up progress state.
 function RampRail({ activeStep = 0 }) {
   const steps = ["Learn", "Practice (testnet)", "Real purchase (approved)", "Reputation minted"];
+  const percent = (activeStep / (steps.length - 1)) * 100;
   return (
-    <div className="flex items-end gap-1 sm:gap-2" aria-label="Onboarding progress">
-      {steps.map((label, i) => (
-        <div key={label} className="flex flex-col items-center flex-1" style={{ marginBottom: i * 10 }}>
-          {/* Connecting line (not on first step) */}
-          <div className="flex items-center w-full mb-2">
-            {i > 0 && (
-              <div className={`h-px flex-1 ${i <= activeStep ? "bg-guide/40" : "bg-surfaceRaised"}`} />
-            )}
-          </div>
-          <div
-            className={`h-2.5 w-full max-w-[4rem] sm:max-w-[5rem] rounded-full transition-all duration-300 ${
-              i <= activeStep ? "bg-guide ramp-pill-active" : "bg-surfaceRaised"
+    <div aria-label="Onboarding progress">
+      {/* Track: thin base line, filled segment up to current progress, single
+          dot marker at the current position. */}
+      <div className="relative h-1.5 rounded-full bg-surfaceRaised">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-guide/70 transition-all duration-500"
+          style={{ width: `${percent}%` }}
+        />
+        <div
+          className="absolute top-1/2 h-4 w-4 -translate-y-1/2 -translate-x-1/2 rounded-full bg-guide ramp-pill-active transition-all duration-500"
+          style={{ left: `${percent}%` }}
+        />
+      </div>
+      {/* Labels below the track, evenly spaced to match the four stops. */}
+      <div className="mt-3 flex justify-between gap-2">
+        {steps.map((label, i) => (
+          <span
+            key={label}
+            className={`text-[10px] sm:text-xs font-data text-center flex-1 ${
+              i === activeStep ? "text-guide" : "text-paper/40"
             }`}
-          />
-          <span className="mt-2 text-[10px] sm:text-xs font-data text-paper/60 text-center max-w-[70px] sm:max-w-none">
+          >
             {label}
           </span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -635,6 +644,24 @@ export default function App() {
   const quizState = useQuizFlow(smartAccountAddress);
   const graduated = quizState.onchain.graduated;
 
+  // SINGLE INSTANCE, same principle as quizState above — passed down to
+  // RealPurchaseFlow as a prop rather than letting it call useRealPurchase
+  // itself, so this component and RealPurchaseFlow read the same `step`
+  // instead of two independent hook instances drifting out of sync.
+  const realPurchaseState = useRealPurchase(smartAccountAddress);
+  const realPurchaseComplete = realPurchaseState.step === REAL_STEP.PURCHASE_DONE;
+
+  // Reputation-minted (the 4th rail stop) only lights up once the real
+  // purchase is done AND the quiz graduation is on-chain — minting depends
+  // on graduation per contract logic, so a purchase alone isn't sufficient.
+  const activeStep = !authenticated
+    ? 0
+    : realPurchaseComplete && graduated
+    ? 3
+    : graduated
+    ? 2
+    : 1;
+
   return (
     <div className="min-h-screen bg-ink relative">
       {/* Subtle background texture */}
@@ -665,7 +692,7 @@ export default function App() {
         </p>
 
         <div className="mt-10">
-          <RampRail activeStep={authenticated ? 1 : 0} />
+          <RampRail activeStep={activeStep} />
         </div>
 
         <div className="mt-10">
@@ -681,7 +708,7 @@ export default function App() {
                     : "beginner wallet")}
               </p>
               {smartAccountAddress ? (
-                <p className="text-paper/50 mt-1">
+                <p className="text-paper/50 mt-1 break-all">
                   Smart account: {smartAccountAddress}
                 </p>
               ) : (
@@ -763,6 +790,7 @@ export default function App() {
             smartAccountAddress={smartAccountAddress}
             graduated={graduated}
             reputationOverall={quizState.onchain.overall}
+            r={realPurchaseState}
           />
         </main>
       )}
