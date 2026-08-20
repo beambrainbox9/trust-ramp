@@ -94,8 +94,9 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated, reput
 
   const mainnetExplorerTx = (hash) => `${NET.explorer}/tx/${hash}`;
 
-  // Matches the contract's PASS_THRESHOLD (TrustRampReputation.sol) — below
-  // this, the score itself signals the risk concepts haven't landed yet.
+  // 70 reused from the contract's PASS_THRESHOLD for consistency — the
+  // contract itself only applies this per-concept (verifiedRWA), overall<70
+  // here is a frontend-only heuristic.
   const lowScore = !Number.isFinite(reputationOverall) || reputationOverall < 70;
 
   return (
