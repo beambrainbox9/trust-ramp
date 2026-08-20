@@ -6,6 +6,34 @@ body {
   @apply bg-ink text-paper font-body antialiased;
 }
 
+@layer components {
+  /* Shared button system (2026-08 dark/orange retheme). Orange fill = the
+     one primary action on a screen. Outline = everything secondary. Both
+     hit the 44px min touch target and share timing/hover behavior so the
+     app never has two different-feeling buttons doing the same job. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-guide px-5 py-3
+      min-h-[44px] font-medium text-sm text-ink transition duration-150
+      hover:brightness-110 active:brightness-95
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-paper/25 px-5 py-3
+      min-h-[44px] font-medium text-sm text-paper transition duration-150
+      hover:border-guide/60 hover:text-guide active:brightness-95
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .fade-in-up.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Tutor markdown. Tailwind's preflight strips list markers and heading sizes,
    so without these the renderer produces semantically correct but visually flat
    output — bullets with no bullet, headings that look like body text. Kept

@@ -17,6 +17,8 @@ import ReputationQuiz from "./components/ReputationQuiz.jsx";
 import RealPurchaseFlow from "./components/RealPurchaseFlow.jsx";
 import { useQuizFlow } from "./hooks/useQuizFlow.js";
 import { ACTIVE_NETWORK, GAS_POLICY_ID_REFERENCE } from "./config/contracts.js";
+import { Link } from "./router.jsx";
+import NetworkBadge from "./components/NetworkBadge.jsx";
 
 // Unique build fingerprint. Used to confirm the debug panel is present in the
 // deployed bundle (grep dist/**/*.js for this string after `vite build`).
@@ -169,10 +171,8 @@ function AuthEntry() {
   // = still a real button, not a small link — accidentally hitting signup on a
   // returning user costs them account continuity, and hitting login on a first-
   // time user just fails cleanly with "no credential found".
-  const primaryClass =
-    "bg-guide text-ink font-medium px-6 py-3 rounded-lg hover:brightness-110 transition";
-  const secondaryClass =
-    "border border-paper/20 text-paper font-medium px-6 py-3 rounded-lg hover:border-paper/40 transition";
+  const primaryClass = "btn-primary !px-6";
+  const secondaryClass = "btn-secondary !px-6";
   // DIAGNOSTIC — plain link so it's visually distinct from the primary flow.
   const diagnosticClass =
     "text-paper/50 underline hover:text-paper/80 text-xs mt-4";
@@ -632,9 +632,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-ink">
       <header className="max-w-3xl mx-auto px-6 pt-16 pb-10">
-        <p className="font-data text-xs tracking-widest text-guide uppercase mb-4">
-          TrustRamp · X Layer
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-data text-xs tracking-widest text-guide uppercase">
+            TrustRamp · X Layer
+          </p>
+          <Link to="/" className="text-xs text-paper/40 hover:text-paper/70 transition">
+            ← Back to home
+          </Link>
+        </div>
         <h1 className="font-display text-4xl sm:text-5xl leading-tight text-paper">
           Your first real step into DeFi,
           <br />
@@ -750,7 +755,8 @@ export default function App() {
         </main>
       )}
 
-      <footer className="max-w-3xl mx-auto px-6 pb-10">
+      <footer className="max-w-3xl mx-auto px-6 pb-10 space-y-4">
+        <NetworkBadge />
         <p className="text-paper/40 text-xs">
           The demo tokenized asset in this app is self-issued for the hackathon —
           it is not a real yield-bearing security. Digital assets are volatile;
