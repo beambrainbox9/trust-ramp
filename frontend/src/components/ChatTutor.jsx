@@ -236,24 +236,28 @@ export default function ChatTutor({ walletAddress }) {
         {loading && <p className="text-paper/40 text-sm">Thinking…</p>}
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <input
+      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !composing) send();
+            if (e.key === "Enter" && !e.shiftKey && !composing) {
+              e.preventDefault();
+              send();
+            }
           }}
           disabled={loading}
           placeholder="Ask anything, no question is too basic"
           aria-label="Ask the TrustRamp guide a question"
-          className="flex-1 bg-ink border border-surfaceRaised rounded-lg px-3 py-3 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-guide disabled:opacity-50"
+          rows={2}
+          className="flex-1 bg-ink border border-surfaceRaised rounded-lg px-3 py-3 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-guide disabled:opacity-50 resize-none"
         />
         <button
           onClick={send}
           disabled={loading || !input.trim()}
-          className="bg-guide text-ink text-sm font-medium px-4 py-3 rounded-lg hover:brightness-110 transition disabled:opacity-50"
+          className="shrink-0 w-full sm:w-auto bg-guide text-ink text-sm font-medium px-4 py-3 rounded-lg hover:brightness-110 transition disabled:opacity-50"
         >
           Send
         </button>
