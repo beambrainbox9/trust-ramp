@@ -790,6 +790,7 @@ export default function App() {
             smartAccountAddress={smartAccountAddress}
             graduated={graduated}
             reputationOverall={quizState.onchain.overall}
+            verifiedRWA={quizState.onchain.verifiedRWA}
             r={realPurchaseState}
           />
         </main>
