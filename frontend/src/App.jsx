@@ -633,9 +633,12 @@ export default function App() {
     <div className="min-h-screen bg-ink">
       <header className="max-w-3xl mx-auto px-6 pt-16 pb-10">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-data text-xs tracking-widest text-guide uppercase">
-            TrustRamp · X Layer
-          </p>
+          <div className="flex items-center gap-2">
+            <img src="/brand/logo-mark-light.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+            <p className="font-data text-xs tracking-widest text-guide uppercase">
+              TrustRamp · X Layer
+            </p>
+          </div>
           <Link to="/" className="text-xs text-paper/40 hover:text-paper/70 transition">
             ← Back to home
           </Link>

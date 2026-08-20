@@ -22,10 +22,8 @@ export default function SiteFooter() {
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-sm">
-            <p className="font-display text-lg text-paper">
-              Trust<span className="text-guide">Ramp</span>
-            </p>
-            <p className="mt-2 text-sm text-paper/50">
+            <img src="/brand/logo-wordmark-light.svg" alt="TrustRamp" className="h-6 w-auto" />
+            <p className="mt-3 text-sm text-paper/50">
               The safe way into your first real crypto purchase.
             </p>
           </div>
