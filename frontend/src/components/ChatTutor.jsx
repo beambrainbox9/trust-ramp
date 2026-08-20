@@ -248,12 +248,12 @@ export default function ChatTutor({ walletAddress }) {
           disabled={loading}
           placeholder="Ask anything, no question is too basic"
           aria-label="Ask the TrustRamp guide a question"
-          className="flex-1 bg-ink border border-surfaceRaised rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-guide disabled:opacity-50"
+          className="flex-1 bg-ink border border-surfaceRaised rounded-lg px-3 py-3 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-guide disabled:opacity-50"
         />
         <button
           onClick={send}
           disabled={loading || !input.trim()}
-          className="bg-guide text-ink text-sm font-medium px-4 py-2 rounded-lg hover:brightness-110 transition disabled:opacity-50"
+          className="bg-guide text-ink text-sm font-medium px-4 py-3 rounded-lg hover:brightness-110 transition disabled:opacity-50"
         >
           Send
         </button>

@@ -156,7 +156,7 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated, reput
               });
             }}
             disabled={!r.clientReady}
-            className="bg-guide text-ink font-medium px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
+            className="bg-guide text-ink font-medium px-5 py-3 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
           >
             {r.clientReady ? "Begin real purchase" : "Setting up mainnet wallet…"}
           </button>
@@ -185,16 +185,16 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated, reput
               per address — you cannot exceed it even if you try.
             </p>
           )}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => r.setStep(REAL_STEP.IDLE)}
-              className="border border-paper/20 text-paper/70 font-medium px-4 py-2 rounded-lg text-sm hover:bg-paper/5 transition"
+              className="border border-paper/20 text-paper/70 font-medium px-4 py-3 rounded-lg text-sm hover:bg-paper/5 transition"
             >
               Go back
             </button>
             <button
               onClick={() => r.setStep(REAL_STEP.APPROVAL)}
-              className="bg-guide text-ink font-medium px-5 py-2 rounded-lg text-sm hover:brightness-110 transition"
+              className="bg-guide text-ink font-medium px-5 py-3 rounded-lg text-sm hover:brightness-110 transition"
             >
               I understand, continue
             </button>
@@ -220,7 +220,7 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated, reput
           )}
           <button
             onClick={() => r.setStep(REAL_STEP.PURCHASE)}
-            className="mt-4 bg-guide text-ink font-medium px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition"
+            className="mt-4 bg-guide text-ink font-medium px-5 py-3 rounded-lg text-sm hover:brightness-110 transition"
           >
             Proceed to purchase
           </button>
@@ -294,7 +294,7 @@ function ApprovalStep({ r }) {
       <button
         onClick={handleApprove}
         disabled={r.busy || !cost || !r.clientReady}
-        className="bg-guide text-ink font-medium px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
+        className="bg-guide text-ink font-medium px-5 py-3 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
       >
         {r.busy === "approve" ? "Approving…" : "Approve exact amount"}
       </button>
@@ -335,7 +335,7 @@ function PurchaseStep({ r }) {
       <button
         onClick={handleBuy}
         disabled={r.busy || !cost || !r.clientReady}
-        className="bg-guide text-ink font-medium px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
+        className="bg-guide text-ink font-medium px-5 py-3 rounded-lg text-sm hover:brightness-110 transition disabled:opacity-40"
       >
         {r.busy === "buy" ? "Purchasing…" : "Buy now"}
       </button>

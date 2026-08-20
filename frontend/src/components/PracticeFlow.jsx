@@ -344,7 +344,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+            className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
           >
             Reload and try again
           </button>
@@ -397,7 +397,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
             <button
               onClick={p.claimFaucet}
               disabled={p.busy !== null || !p.ready}
-              className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {p.busy === "faucet"
                 ? "Claiming…"
@@ -412,7 +412,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
         {p.step === STEP.IDLE && !needsFunds && (
           <button
             onClick={() => p.setStep(STEP.OVERVIEW)}
-            className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+            className="mt-4 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
           >
             Start the walkthrough
           </button>
@@ -427,7 +427,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
           {p.step === STEP.OVERVIEW && (
             <button
               onClick={() => p.setStep(STEP.APPROVAL)}
-              className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+              className="mt-4 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
             >
               Next: the approval
             </button>
@@ -450,7 +450,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
                 if (hash) p.setStep(STEP.APPROVAL_DONE);
               }}
               disabled={p.busy !== null || !p.ready}
-              className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="mt-4 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {p.busy === "approve"
                 ? "Approving…"
@@ -471,7 +471,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
           {p.step === STEP.APPROVAL_DONE && (
             <button
               onClick={() => p.setStep(STEP.PURCHASE)}
-              className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+              className="mt-4 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
             >
               Next: the purchase
             </button>
@@ -509,7 +509,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
                 if (hash) p.setStep(STEP.PURCHASE_DONE);
               }}
               disabled={p.busy !== null || !p.ready}
-              className="mt-4 bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="mt-4 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {p.busy === "buy"
                 ? "Buying…"
@@ -572,7 +572,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
                 p.restartFlow();
               }}
               disabled={p.busy !== null}
-              className="border border-guide/50 text-guide font-medium px-4 py-2 rounded-lg text-sm hover:bg-guide/10 transition disabled:opacity-50"
+              className="border border-guide/50 text-guide font-medium px-4 py-3 rounded-lg text-sm hover:bg-guide/10 transition disabled:opacity-50"
             >
               Run it again
             </button>
@@ -609,7 +609,7 @@ export default function PracticeFlow({ smartAccountAddress }) {
             <button
               onClick={() => p.retryLast().catch(() => {})}
               disabled={p.busy !== null || !p.ready}
-              className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {p.busy !== null ? "Trying again…" : "Try that step again"}
             </button>

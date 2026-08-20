@@ -140,7 +140,7 @@ export default function ReputationQuiz({ smartAccountAddress, quizState }) {
               </p>
               <button
                 onClick={q.start}
-                className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+                className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
               >
                 Retake the check
               </button>
@@ -156,7 +156,7 @@ export default function ReputationQuiz({ smartAccountAddress, quizState }) {
               </p>
               <button
                 onClick={q.start}
-                className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm"
+                className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm"
               >
                 Start the check
               </button>
@@ -192,7 +192,7 @@ export default function ReputationQuiz({ smartAccountAddress, quizState }) {
             <button
               onClick={() => q.submitAnswer(draft)}
               disabled={q.pendingSubmit || !draft.trim()}
-              className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {q.pendingSubmit
                 ? "Sending…"
@@ -253,11 +253,11 @@ export default function ReputationQuiz({ smartAccountAddress, quizState }) {
             can then read it — that's the whole point of an on-chain reputation. If you'd rather not,
             simply don't click; nothing is minted.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={q.mint}
               disabled={q.phase === QUIZ_PHASE.MINTING}
-              className="bg-guide text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              className="bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm disabled:opacity-50"
             >
               {q.phase === QUIZ_PHASE.MINTING ? "Publishing…" : "Mint my reputation score"}
             </button>
@@ -265,7 +265,7 @@ export default function ReputationQuiz({ smartAccountAddress, quizState }) {
               <button
                 onClick={q.start}
                 disabled={q.phase === QUIZ_PHASE.MINTING}
-                className="border border-paper/20 text-paper/70 font-medium px-4 py-2 rounded-lg text-sm hover:bg-paper/5 transition disabled:opacity-50"
+                className="border border-paper/20 text-paper/70 font-medium px-4 py-3 rounded-lg text-sm hover:bg-paper/5 transition disabled:opacity-50"
               >
                 Retake the check
               </button>

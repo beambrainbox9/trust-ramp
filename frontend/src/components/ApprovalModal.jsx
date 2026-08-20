@@ -88,13 +88,13 @@ export default function ApprovalModal({ tx, onApprove, onCancel }) {
         <div className="flex gap-3 mt-6">
           <button
             onClick={onCancel}
-            className="flex-1 border border-paper/20 text-paper/70 font-medium px-4 py-2.5 rounded-lg text-sm hover:bg-paper/5 transition"
+            className="flex-1 border border-paper/20 text-paper/70 font-medium px-4 py-3 rounded-lg text-sm hover:bg-paper/5 transition"
           >
             Cancel
           </button>
           <button
             onClick={onApprove}
-            className="flex-1 bg-guide text-ink font-medium px-4 py-2.5 rounded-lg text-sm hover:brightness-110 transition"
+            className="flex-1 bg-guide text-ink font-medium px-4 py-3 rounded-lg text-sm hover:brightness-110 transition"
           >
             Approve
           </button>

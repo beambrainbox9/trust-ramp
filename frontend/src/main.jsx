@@ -33,7 +33,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { PurchaseFlowProvider } from "./context/PurchaseFlowContext.jsx";
-import App from "./App.jsx";
+import Root from "./Root.jsx";
 import { xLayerTestnet } from "./chains.js";
 import "./index.css";
 
@@ -86,14 +86,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         embeddedWallets: { createOnLogin: "users-without-wallets" },
         defaultChain: xLayerTestnet,
         supportedChains: [xLayerTestnet],
-        appearance: { theme: "dark", accentColor: "#D8A657" },
+        appearance: { theme: "dark", accentColor: "#F2661C" },
       }}
     >
       {/* Shared reactive signal for purchase-flow transactions. Kept innermost
           because only components below <App /> consume it, and it should not
           outlive the authenticated session. */}
       <PurchaseFlowProvider>
-        <App />
+        <Root />
       </PurchaseFlowProvider>
     </PrivyProvider>
   </React.StrictMode>
