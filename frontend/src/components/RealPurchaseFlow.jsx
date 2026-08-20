@@ -390,6 +390,26 @@ function PurchaseSummary({ r, reputationOverall }) {
           take TrustRamp's word for it.
         </p>
       </div>
+      <div className={box()}>
+        <h4 className="text-paper font-medium text-sm mb-2">Congratulations 🥳, You're in!</h4>
+        <p className="text-paper/70 text-sm leading-relaxed mb-3">
+          You just completed a real transaction on X Layer Mainnet — not a demo,
+          not a testnet run. That's the whole point of TrustRamp: understanding
+          before money moves, then real money moving with confidence.
+        </p>
+        <p className="text-paper/70 text-sm leading-relaxed mb-3">
+          Want to go deeper? Retake the check anytime to sharpen your score, or
+          revisit the practice sandbox to try another concept.
+        </p>
+        <p className="text-paper/70 text-sm leading-relaxed">
+          Built something you want to talk about? Post on X and tag{" "}
+          <span className="text-guide">@trustramp_ai</span> — we'd genuinely like
+          to see it. Questions, issues, or ideas: reach us at{" "}
+          <a href="mailto:mobabst@gmail.com" className="text-guide underline">
+            mobabst@gmail.com
+          </a>.
+        </p>
+      </div>
     </div>
   );
 }
