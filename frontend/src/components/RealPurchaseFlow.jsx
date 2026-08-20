@@ -16,7 +16,7 @@ function box(extra = "") {
 // quizState/ReputationQuiz, so App.jsx's activeStep (the ramp rail) and this
 // component's step UI always read the same state instead of two independent
 // hook instances drifting out of sync.
-export default function RealPurchaseFlow({ smartAccountAddress, graduated, reputationOverall, r }) {
+export default function RealPurchaseFlow({ smartAccountAddress, graduated, reputationOverall, verifiedRWA, r }) {
   // Auto-fund with DEMO-USDC the first time this address reaches the real
   // purchase flow post-graduation, before the purchase UI is shown — so by
   // the time the user clicks through, the funds are already there. Fires
@@ -94,12 +94,17 @@ export default function RealPurchaseFlow({ smartAccountAddress, graduated, reput
 
   const mainnetExplorerTx = (hash) => `${NET.explorer}/tx/${hash}`;
 
+  // Matches the contract's PASS_THRESHOLD (TrustRampReputation.sol) — below
+  // this, the score itself signals the risk concepts haven't landed yet.
+  const lowScore = !Number.isFinite(reputationOverall) || reputationOverall < 70;
+
   return (
     <section className="mt-10">
       <h2 className="font-display text-xl text-paper mb-2">Real Purchase</h2>
       <p className="text-paper/60 text-sm mb-4">
-        You graduated the quiz. You can now make a small, human-approved mainnet
-        purchase (up to the $25 lifetime cap).
+        {lowScore || !verifiedRWA
+          ? `Quiz complete — score published on-chain: ${reputationOverall}/100. Real purchases aren't gated by quiz score, so you can still proceed. That said, a low score usually means the risk concepts (slippage, custody, redemption) haven't landed yet — retaking first is recommended before putting real funds in.`
+          : `Quiz complete — your on-chain score (${reputationOverall}/100) shows strong understanding. You can now make a small, human-approved mainnet purchase (up to the $25 lifetime cap).`}
       </p>
 
       {r.clientError && (
