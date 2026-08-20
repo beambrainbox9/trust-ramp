@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-ink text-paper font-body antialiased;
 }
@@ -32,6 +36,62 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ---------- Decorative utilities (2026-08 visual upgrade) ---------- */
+
+/* Section eyebrow labels — small uppercase mono text above section headings */
+.section-label {
+  @apply font-data text-xs uppercase tracking-widest text-guide mb-4 block;
+}
+
+/* Gradient glow — large radial orange bloom used behind hero and CTA sections */
+.gradient-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 102, 28, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dot grid texture overlay — subtle repeating dot pattern */
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(244, 241, 234, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Section divider — small decorative separator between sections */
+.section-divider {
+  @apply flex items-center justify-center py-0;
+}
+.section-divider::before {
+  content: '';
+  @apply w-8 h-px bg-guide/30;
+}
+
+/* Bento card hover glow */
+.bento-card {
+  @apply rounded-2xl border border-paper/10 bg-surface p-6 sm:p-8 transition-all duration-300;
+}
+.bento-card:hover {
+  @apply border-guide/25;
+  box-shadow: 0 0 24px rgba(242, 102, 28, 0.06);
+}
+
+/* Pulse animation for "live" elements */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-subtle-pulse {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+/* App page ramp rail pill glow */
+.ramp-pill-active {
+  box-shadow: 0 0 10px rgba(242, 102, 28, 0.35);
 }
 
 /* Tutor markdown. Tailwind's preflight strips list markers and heading sizes,

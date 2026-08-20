@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRealPurchase, REAL_STEP } from "../hooks/useRealPurchase.js";
+import { REAL_STEP } from "../hooks/useRealPurchase.js";
 import { NETWORKS, ASSET_DECIMALS, PAYMENT_DECIMALS } from "../config/contracts.js";
 import { apiUrl } from "../config/api.js";
 import ApprovalModal from "./ApprovalModal.jsx";
@@ -11,9 +11,12 @@ function box(extra = "") {
   return `border border-paper/10 rounded-lg p-5 mt-6 ${extra}`;
 }
 
-export default function RealPurchaseFlow({ smartAccountAddress, graduated, reputationOverall }) {
-  const r = useRealPurchase(smartAccountAddress);
-
+// `r` is a single useRealPurchase(smartAccountAddress) instance, lifted to
+// App.jsx and passed down here — same shared-instance principle as
+// quizState/ReputationQuiz, so App.jsx's activeStep (the ramp rail) and this
+// component's step UI always read the same state instead of two independent
+// hook instances drifting out of sync.
+export default function RealPurchaseFlow({ smartAccountAddress, graduated, reputationOverall, r }) {
   // Auto-fund with DEMO-USDC the first time this address reaches the real
   // purchase flow post-graduation, before the purchase UI is shown — so by
   // the time the user clicks through, the funds are already there. Fires

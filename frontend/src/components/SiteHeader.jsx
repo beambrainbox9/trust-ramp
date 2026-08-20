@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Link, usePathname } from "../router.jsx";
 
-// Text wordmark placeholder. No logo file was supplied for this build — see
-// PROJECT_PLAN / handoff notes. Styled in the display (Fraunces) face so it
-// reads as a mark, not a label, and swaps in cleanly for a real logo later.
+// Real TrustRamp mark — light/off-white version, for this dark header.
 function Wordmark() {
   return (
-    <span className="font-display text-xl tracking-tight text-paper">
-      Trust<span className="text-guide">Ramp</span>
-    </span>
+    <img
+      src="/brand/logo-wordmark-light.svg"
+      alt="TrustRamp"
+      className="h-7 w-auto sm:h-8"
+    />
   );
 }
 
